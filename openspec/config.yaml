@@ -1,0 +1,60 @@
+schema: spec-driven
+
+context: |
+  Tech stack: Next.js (canary v15.3.0-canary.31), React 19, TypeScript, Biome, Tailwind CSS v4, Playwright, Drizzle ORM, PostgreSQL, Vercel AI SDK, NextAuth, Redis.
+  Architecture: Next.js App Router project with AI Chatbot components, tools/agents, Drizzle ORM database layer, and Playwright integration/E2E test suite.
+  Testing: Playwright for integration (routes) and E2E testing. Strict TDD is supported and enabled.
+  Style: Modern TypeScript with Next.js App Router patterns, Tailwind CSS v4, and Biome linting/formatting.
+
+testing:
+  strict_tdd: true
+  detected: "2026-07-11T11:24:00-03:00"
+  runner:
+    command: "pnpm test"
+    framework: "Playwright"
+  layers:
+    unit:
+      available: false
+      tool: ""
+    integration:
+      available: true
+      tool: "Playwright (tests/routes)"
+    e2e:
+      available: true
+      tool: "Playwright (tests/e2e)"
+  coverage:
+    available: false
+    command: ""
+  quality:
+    linter:
+      available: true
+      command: "pnpm lint"
+    type_checker:
+      available: true
+      command: "npx tsc --noEmit"
+    formatter:
+      available: true
+      command: "pnpm format"
+
+rules:
+  proposal:
+    - Include rollback plan for schema modifications
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Document data schema versions and validation checks
+    - Document architecture decisions with rationale
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    - Follow existing code patterns
+    tdd: true
+    test_command: "pnpm test"
+  verify:
+    test_command: "pnpm test"
+    build_command: "pnpm build"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas

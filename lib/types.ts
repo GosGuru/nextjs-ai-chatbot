@@ -44,6 +44,7 @@ export type CustomUIDataTypes = {
   clear: null;
   finish: null;
   usage: AppUsage;
+  'generation-run-id': string;
 };
 
 export type ChatMessage = UIMessage<
@@ -56,4 +57,53 @@ export interface Attachment {
   name: string;
   url: string;
   contentType: string;
+}
+
+export interface ChatGenerationPayload {
+  id: string; // chatId
+  message: {
+    id: string;
+    role: 'user';
+    parts: Array<
+      | { type: 'text'; text: string }
+      | { type: 'file'; url: string; name: string; mediaType: string }
+    >;
+  };
+  controls: {
+    platform: string;
+    category: string;
+    objective: string;
+    responseType: string;
+    intensity: string;
+    extension: string;
+    customGoal?: string;
+  };
+}
+
+export interface FeedbackPayload {
+  generationRunId: string;
+  optionType: string;
+  optionText: string;
+  feedback: 'positive' | 'negative' | 'copied' | 'selected' | 'regenerated';
+  comment?: string;
+}
+
+export interface RAGMetadata {
+  analysis: {
+    category: 'apertura' | 'shit_test' | 'tension' | 'chat_frio' | 'concrecion';
+    conversationalReading: string;
+    observedSignals: string[];
+    apparentInvestment: 'baja' | 'media' | 'alta' | 'incierta';
+    principalRisk: string;
+    recommendedStrategy: string;
+    confidence: number;
+  };
+  options: Array<{
+    type: 'desafio_teasing' | 'intriga_curiosidad' | 'directa_avance' | 'calibrada_espejo';
+    text: string;
+    rationale: string;
+    intensity: 'suave' | 'media' | 'alta';
+  }>;
+  retrievedExampleIds: string[];
+  ruleSetId: string;
 }

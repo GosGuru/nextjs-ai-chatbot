@@ -14,6 +14,16 @@ const filePartSchema = z.object({
 
 const partSchema = z.union([textPartSchema, filePartSchema]);
 
+const controlsSchema = z.object({
+  platform: z.string(),
+  category: z.string(),
+  objective: z.string(),
+  responseType: z.string(),
+  intensity: z.string(),
+  extension: z.string(),
+  customGoal: z.string().optional(),
+});
+
 export const postRequestBodySchema = z.object({
   id: z.string().uuid(),
   message: z.object({
@@ -23,6 +33,7 @@ export const postRequestBodySchema = z.object({
   }),
   selectedChatModel: z.enum(['chat-model', 'chat-model-reasoning']),
   selectedVisibilityType: z.enum(['public', 'private']),
+  controls: controlsSchema.optional(),
 });
 
 export type PostRequestBody = z.infer<typeof postRequestBodySchema>;

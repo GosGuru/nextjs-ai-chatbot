@@ -119,3 +119,103 @@ Improve the following spreadsheet based on the given prompt.
 ${currentContent}
 `
         : '';
+
+export function buildRAGSystemPrompt({
+  controls,
+  examples,
+  ruleSet,
+}: {
+  controls: {
+    platform: string;
+    category: string;
+    objective: string;
+    responseType: string;
+    intensity: string;
+    extension: string;
+    customGoal?: string;
+  };
+  examples: any[];
+  ruleSet: any;
+}): string {
+  const coreInstructions = `
+Eres un asistente de IA especializado en analizar conversaciones de chat y proponer la próxima respuesta de manera natural.
+Actúas como un coach conversacional y de citas privado para el usuario.
+
+## Reglas de comportamiento obligatorias:
+- Responde y sugiere textos en ESPAÑOL RIOPLATENSE natural y fluido (usando el voseo: "vos", "tenés", "querés", "estás").
+- Prioriza la brevedad extrema. La respuesta sugerida debe ser concisa.
+- Mantén una sola idea dominante por respuesta.
+- No incluyas explicaciones ni justificaciones dentro del mensaje sugerido. La sugerencia debe ser lista para copiar.
+- Evita sonar como un terapeuta, coach motivacional o vendedor. No utilices términos psicológicos complejos en las respuestas sugeridas.
+- No asumas intenciones sin evidencia.
+- No insultes, degrades ni presiones ante rechazo explícito.
+- Trata los ejemplos recuperados como inspiración de criterio y estilo, NO como plantillas literales. Evita repetir frases exactas del dataset.
+`;
+
+  let ruleSetInstructions = '';
+  if (ruleSet) {
+    ruleSetInstructions = `
+## Reglas de estilo activas (Rule Set: ${ruleSet.name}):
+${ruleSet.systemPrompt}
+${Array.isArray(ruleSet.rules) ? ruleSet.rules.map((r: string) => `- ${r}`).join('\n') : ''}
+`;
+  }
+
+  const userPreferences = `
+## Preferencias del usuario:
+- Plataforma: ${controls.platform}
+- Categoría: ${controls.category}
+- Objetivo: ${controls.customGoal || controls.objective}
+- Tipo de respuesta: ${controls.responseType}
+- Intensidad: ${controls.intensity}
+- Extensión: ${controls.extension}
+`;
+
+  let examplesContext = '';
+  if (examples && examples.length > 0) {
+    examplesContext = `
+## Ejemplos recuperados de referencia (criterio y estilo):
+${examples.map((ex, i) => `
+Ejemplo ${i + 1}:
+- Contexto: ${ex.situationalContext}
+- Último mensaje recibido: "${ex.lastMessage}"
+- Análisis psicológico: ${ex.psychologicalAnalysis}
+- Opciones sugeridas como referencia:
+${JSON.stringify(ex.options, null, 2)}
+`).join('\n')}
+`;
+  }
+
+  const outputFormat = `
+## Formato de salida:
+Debes responder en un formato JSON estrictamente estructurado según el siguiente esquema (sin formato markdown adicional fuera de las llaves del JSON):
+
+{
+  "analysis": {
+    "category": "${controls.category !== 'auto' ? controls.category : 'apertura'}",
+    "conversationalReading": "Análisis breve del estado actual de la conversación.",
+    "observedSignals": ["señal 1", "señal 2"],
+    "apparentInvestment": "baja",
+    "principalRisk": "Riesgo principal identificado si se responde mal.",
+    "recommendedStrategy": "Estrategia recomendada para esta interacción.",
+    "confidence": 0.9
+  },
+  "options": [
+    {
+      "type": "desafio_teasing",
+      "text": "Respuesta sugerida lista para copiar.",
+      "rationale": "Breve explicación de por qué esta respuesta sirve.",
+      "intensity": "${controls.intensity}"
+    }
+  ]
+}
+
+### Restricciones del JSON de salida:
+- En modo automático (cuando no se elige un tipo específico), debes devolver exactamente 4 opciones, una para cada tipo disponible (desafio_teasing, intriga_curiosidad, directa_avance, calibrada_espejo).
+- En modo específico (cuando se elige un tipo), debes devolver exactamente 3 variantes de ese mismo tipo específico.
+- Respeta la extensión solicitada: si es "Muy breve" o "Breve", las respuestas no deben superar las 10-15 palabras.
+`;
+
+  return `${coreInstructions}\n${ruleSetInstructions}\n${userPreferences}\n${examplesContext}\n${outputFormat}`;
+}
+

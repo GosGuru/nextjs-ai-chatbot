@@ -5,6 +5,7 @@ import {
   smoothStream,
   stepCountIs,
   streamText,
+  generateText,
 } from 'ai';
 import { auth, type UserType } from '@/app/(auth)/auth';
 import { type RequestHints, systemPrompt } from '@/lib/ai/prompts';
@@ -25,7 +26,7 @@ import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { getWeather } from '@/lib/ai/tools/get-weather';
 import { isProductionEnvironment } from '@/lib/constants';
-import { myProvider } from '@/lib/ai/providers';
+import { myProvider, openaiProvider } from '@/lib/ai/providers';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
 import { postRequestBodySchema, type PostRequestBody } from './schema';
 import { geolocation } from '@vercel/functions';
@@ -84,6 +85,56 @@ export function getStreamContext() {
   return globalStreamContext;
 }
 
+async function extractConversationFromImages(files: Array<{ url: string; mediaType: string }>) {
+  const visionPrompt = `
+Eres un experto en transcripción de chats. Analizá estas capturas de pantalla de una conversación.
+Extraé cronológicamente todos los mensajes que sean visibles y determiná:
+1. El último mensaje recibido de la otra persona (la chica/destinataria).
+2. El contexto situacional actual de la charla.
+
+Tu respuesta debe ser ESTRICTAMENTE un JSON con esta estructura (sin formato markdown adicional fuera del objeto JSON):
+{
+  "transcription": "Completa la transcripción con 'Él: ...' y 'Ella: ...'",
+  "lastMessage": "El último mensaje de ella",
+  "contextSummary": "Resumen situacional"
+}
+`;
+
+  try {
+    const response = await generateText({
+      model: openaiProvider('gpt-4o-mini') as any,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: visionPrompt },
+            ...files.map((file) => ({
+              type: 'image' as const,
+              image: new URL(file.url),
+            })),
+          ],
+        },
+      ],
+    });
+
+    let text = response.text.trim();
+    if (text.startsWith('```json')) {
+      text = text.substring(7, text.length - 3).trim();
+    } else if (text.startsWith('```')) {
+      text = text.substring(3, text.length - 3).trim();
+    }
+
+    return JSON.parse(text);
+  } catch (error) {
+    console.error('Vision extraction failed:', error);
+    return {
+      transcription: '',
+      lastMessage: '',
+      contextSummary: '',
+    };
+  }
+}
+
 export async function POST(request: Request) {
   let requestBody: PostRequestBody;
 
@@ -100,12 +151,16 @@ export async function POST(request: Request) {
       message,
       selectedChatModel,
       selectedVisibilityType,
+      controls,
     }: {
       id: string;
       message: ChatMessage;
       selectedChatModel: ChatModel['id'];
       selectedVisibilityType: VisibilityType;
+      controls?: any;
     } = requestBody;
+
+    const startTime = Date.now();
 
     const session = await auth();
 
@@ -155,6 +210,52 @@ export async function POST(request: Request) {
       country,
     };
 
+    let extractedTranscription = '';
+    let extractedLastMessage = '';
+    let extractedContext = '';
+    let customSystemPrompt: string | undefined;
+    let examples: any[] = [];
+    let ruleSet: any = null;
+
+    if (controls) {
+      const imageFiles = message.parts.filter((p) => p.type === 'file') as Array<{
+        url: string;
+        mediaType: string;
+      }>;
+      if (imageFiles.length > 0) {
+        const ext = await extractConversationFromImages(imageFiles);
+        extractedTranscription = ext.transcription;
+        extractedLastMessage = ext.lastMessage;
+        extractedContext = ext.contextSummary;
+      }
+
+      const queryText = `Categoría: ${controls.category}. Contexto: ${
+        extractedContext ||
+        message.parts
+          .filter((p) => p.type === 'text')
+          .map((p) => (p as any).text)
+          .join(' ')
+      }. Último mensaje recibido: ${
+        extractedLastMessage ||
+        message.parts
+          .filter((p) => p.type === 'text')
+          .map((p) => (p as any).text)
+          .join(' ')
+      }.`;
+
+      const { performRAGSearch } = await import('@/lib/ai/rag-search');
+      const RAGResult = await performRAGSearch(queryText, 6);
+      examples = RAGResult.examples;
+      ruleSet = RAGResult.ruleSet;
+
+      const { buildRAGSystemPrompt } = await import('@/lib/ai/prompts');
+      customSystemPrompt = buildRAGSystemPrompt({
+        controls,
+        examples,
+        ruleSet,
+      });
+    }
+
     await saveMessages({
       messages: [
         {
@@ -177,7 +278,7 @@ export async function POST(request: Request) {
       execute: ({ writer: dataStream }) => {
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: systemPrompt({ selectedChatModel, requestHints }),
+          system: customSystemPrompt || systemPrompt({ selectedChatModel, requestHints }),
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(5),
           experimental_activeTools:
@@ -203,7 +304,56 @@ export async function POST(request: Request) {
             isEnabled: isProductionEnvironment,
             functionId: 'stream-text',
           },
-          onFinish: async ({ usage }) => {
+          onFinish: async ({ usage, text }) => {
+            const latencyMs = Date.now() - startTime;
+            if (controls) {
+              try {
+                let detectedCategory = controls.category;
+                let parsedResult: any = {};
+                try {
+                  let cleanText = text.trim();
+                  if (cleanText.startsWith('```json')) {
+                    cleanText = cleanText.substring(7, cleanText.length - 3).trim();
+                  } else if (cleanText.startsWith('```')) {
+                    cleanText = cleanText.substring(3, cleanText.length - 3).trim();
+                  }
+                  parsedResult = JSON.parse(cleanText);
+                  if (parsedResult.analysis?.category) {
+                    detectedCategory = parsedResult.analysis.category;
+                  }
+                } catch (e) {
+                  console.warn('Failed parsing streamed JSON response:', e);
+                }
+
+                const { insertGenerationRun } = await import('@/lib/db/queries');
+                const run = await insertGenerationRun({
+                  userId: session.user.id,
+                  chatId: id,
+                  inputSnapshot: {
+                    prompt: message.parts
+                      .filter((p) => p.type === 'text')
+                      .map((p) => (p as any).text)
+                      .join(' '),
+                    transcription: extractedTranscription,
+                    lastMessage: extractedLastMessage,
+                    context: extractedContext,
+                  },
+                  controls,
+                  detectedCategory,
+                  retrievedExampleIds: examples.map((ex) => ex.id),
+                  retrievalScores: {},
+                  ruleSetId: ruleSet ? ruleSet.id : null,
+                  model: selectedChatModel === 'chat-model' ? 'deepseek-chat' : selectedChatModel,
+                  result: parsedResult,
+                  latencyMs,
+                });
+
+                dataStream.write({ type: 'data-generation-run-id', data: run.id } as any);
+              } catch (err) {
+                console.error('Failed to log generation run:', err);
+              }
+            }
+
             try {
               const providers = await getTokenlensCatalog();
               const modelId =

@@ -34,7 +34,7 @@ import {
   PromptInputModelSelect,
   PromptInputModelSelectContent,
 } from './elements/prompt-input';
-import { SelectItem } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import equal from 'fast-deep-equal';
 import type { UseChatHelpers } from '@ai-sdk/react';
@@ -63,6 +63,8 @@ function PureMultimodalInput({
   selectedModelId,
   onModelChange,
   usage,
+  controls,
+  setControls,
 }: {
   chatId: string;
   input: string;
@@ -79,6 +81,8 @@ function PureMultimodalInput({
   selectedModelId: string;
   onModelChange?: (modelId: string) => void;
   usage?: AppUsage;
+  controls?: any;
+  setControls?: Dispatch<SetStateAction<any>>;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
@@ -132,21 +136,30 @@ function PureMultimodalInput({
   const submitForm = useCallback(() => {
     window.history.replaceState({}, '', `/chat/${chatId}`);
 
-    sendMessage({
-      role: 'user',
-      parts: [
-        ...attachments.map((attachment) => ({
-          type: 'file' as const,
-          url: attachment.url,
-          name: attachment.name,
-          mediaType: attachment.contentType,
-        })),
-        {
-          type: 'text',
-          text: input,
-        },
-      ],
-    });
+    sendMessage(
+      {
+        role: 'user',
+        parts: [
+          ...attachments.map((attachment) => ({
+            type: 'file' as const,
+            url: attachment.url,
+            name: attachment.name,
+            mediaType: attachment.contentType,
+          })),
+          {
+            type: 'text',
+            text: input,
+          },
+        ],
+      },
+      controls
+        ? {
+            body: {
+              controls,
+            },
+          }
+        : undefined
+    );
 
     setAttachments([]);
     setLocalStorageInput('');
@@ -165,6 +178,7 @@ function PureMultimodalInput({
     setLocalStorageInput,
     width,
     chatId,
+    controls,
   ]);
 
   const uploadFile = async (file: File) => {
@@ -243,6 +257,145 @@ function PureMultimodalInput({
             selectedVisibilityType={selectedVisibilityType}
           />
         )}
+
+      {controls && setControls && (
+        <div className="p-3 border rounded-xl flex flex-col gap-3 bg-muted/20 border-border shadow-xs">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Configuración de Coach RAG (Español Rioplatense)
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="platform-select" className="text-[10px] text-muted-foreground uppercase font-medium">Plataforma</label>
+              <Select
+                value={controls.platform}
+                onValueChange={(val) => setControls((c: any) => ({ ...c, platform: val }))}
+              >
+                <SelectTrigger id="platform-select" className="h-8 text-xs bg-background">
+                  <SelectValue placeholder="Plataforma" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Tinder">Tinder</SelectItem>
+                  <SelectItem value="Bumble">Bumble</SelectItem>
+                  <SelectItem value="Instagram">Instagram</SelectItem>
+                  <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                  <SelectItem value="Happn">Happn</SelectItem>
+                  <SelectItem value="Otra">Otra</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="category-select" className="text-[10px] text-muted-foreground uppercase font-medium">Categoría</label>
+              <Select
+                value={controls.category}
+                onValueChange={(val) => setControls((c: any) => ({ ...c, category: val }))}
+              >
+                <SelectTrigger id="category-select" className="h-8 text-xs bg-background">
+                  <SelectValue placeholder="Categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="apertura">Apertura</SelectItem>
+                  <SelectItem value="shit_test">Shit-Test</SelectItem>
+                  <SelectItem value="tension">Tensión</SelectItem>
+                  <SelectItem value="chat_frio">Chat Frío</SelectItem>
+                  <SelectItem value="concrecion">Concreción</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="objective-select" className="text-[10px] text-muted-foreground uppercase font-medium">Objetivo</label>
+              <Select
+                value={controls.objective}
+                onValueChange={(val) => setControls((c: any) => ({ ...c, objective: val }))}
+              >
+                <SelectTrigger id="objective-select" className="h-8 text-xs bg-background">
+                  <SelectValue placeholder="Objetivo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="calibrar_charla">Calibrar Charla</SelectItem>
+                  <SelectItem value="conseguir_instagram">Conseguir Instagram</SelectItem>
+                  <SelectItem value="conseguir_whatsapp">Conseguir WhatsApp</SelectItem>
+                  <SelectItem value="pactar_cita">Pactar Cita</SelectItem>
+                  <SelectItem value="custom">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="type-select" className="text-[10px] text-muted-foreground uppercase font-medium">Tipo</label>
+              <Select
+                value={controls.responseType}
+                onValueChange={(val) => setControls((c: any) => ({ ...c, responseType: val }))}
+              >
+                <SelectTrigger id="type-select" className="h-8 text-xs bg-background">
+                  <SelectValue placeholder="Tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Auto</SelectItem>
+                  <SelectItem value="desafio_teasing">Desafío / Teasing</SelectItem>
+                  <SelectItem value="intriga_curiosidad">Intriga / Curiosidad</SelectItem>
+                  <SelectItem value="directa_avance">Directa / Avance</SelectItem>
+                  <SelectItem value="calibrada_espejo">Calibrada / Espejo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="intensity-select" className="text-[10px] text-muted-foreground uppercase font-medium">Intensidad</label>
+              <Select
+                value={controls.intensity}
+                onValueChange={(val) => setControls((c: any) => ({ ...c, intensity: val }))}
+              >
+                <SelectTrigger id="intensity-select" className="h-8 text-xs bg-background">
+                  <SelectValue placeholder="Intensidad" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="suave">Suave</SelectItem>
+                  <SelectItem value="media">Media</SelectItem>
+                  <SelectItem value="alta">Alta</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="extension-select" className="text-[10px] text-muted-foreground uppercase font-medium">Extensión</label>
+              <Select
+                value={controls.extension}
+                onValueChange={(val) => setControls((c: any) => ({ ...c, extension: val }))}
+              >
+                <SelectTrigger id="extension-select" className="h-8 text-xs bg-background">
+                  <SelectValue placeholder="Extensión" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="muy_breve">Muy breve</SelectItem>
+                  <SelectItem value="breve">Breve</SelectItem>
+                  <SelectItem value="mediana">Mediana</SelectItem>
+                  <SelectItem value="larga">Larga</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {controls.objective === 'custom' && (
+            <div className="flex flex-col gap-1 mt-1">
+              <label htmlFor="custom-goal-input" className="text-[10px] text-muted-foreground uppercase font-medium">Objetivo Personalizado</label>
+              <input
+                id="custom-goal-input"
+                type="text"
+                aria-label="Objetivo Personalizado"
+                placeholder="Ej. Invitarla a tomar algo este jueves cerca de Palermo"
+                className="w-full text-xs p-2 border border-border bg-background rounded-md outline-hidden focus:ring-1 focus:ring-ring focus-visible:outline-hidden"
+                value={controls.customGoal || ''}
+                onChange={(e) => setControls((c: any) => ({ ...c, customGoal: e.target.value }))}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <input
         type="file"
@@ -349,6 +502,7 @@ export const MultimodalInput = memo(
     if (prevProps.selectedVisibilityType !== nextProps.selectedVisibilityType)
       return false;
     if (prevProps.selectedModelId !== nextProps.selectedModelId) return false;
+    if (!equal(prevProps.controls, nextProps.controls)) return false;
 
     return true;
   },

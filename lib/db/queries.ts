@@ -11,6 +11,7 @@ import {
   inArray,
   lt,
   type SQL,
+  sql,
 } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
@@ -27,6 +28,12 @@ import {
   type DBMessage,
   type Chat,
   stream,
+  chatExamples,
+  assistantRuleSets,
+  generationRuns,
+  responseFeedback,
+  type ChatExample,
+  type AssistantRuleSet,
 } from './schema';
 import type { ArtifactKind } from '@/components/artifact';
 import { generateUUID } from '../utils';
@@ -563,3 +570,97 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
     );
   }
 }
+
+// RAG Query Functions
+export async function findSimilarExamples(
+  promptEmbedding: number[],
+  limit = 6
+): Promise<Array<ChatExample>> {
+  try {
+    const vectorStr = JSON.stringify(promptEmbedding);
+    return await db
+      .select()
+      .from(chatExamples)
+      .where(eq(chatExamples.active, true))
+      .orderBy(sql`${chatExamples.embedding} <=> ${vectorStr}`)
+      .limit(limit);
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to find similar examples');
+  }
+}
+
+export async function getActiveRuleSet(): Promise<AssistantRuleSet | null> {
+  try {
+    const results = await db
+      .select()
+      .from(assistantRuleSets)
+      .where(eq(assistantRuleSets.active, true))
+      .limit(1);
+    return results[0] || null;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to get active rule set');
+  }
+}
+
+export async function findSimilarRuleSets(
+  promptEmbedding: number[],
+  limit = 2
+): Promise<Array<AssistantRuleSet>> {
+  try {
+    const active = await getActiveRuleSet();
+    return active ? [active] : [];
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to find similar rule sets');
+  }
+}
+
+export async function insertGenerationRun(data: {
+  userId?: string | null;
+  chatId?: string | null;
+  inputSnapshot: any;
+  controls: any;
+  detectedCategory: string;
+  retrievedExampleIds: string[] | null;
+  retrievalScores: any;
+  ruleSetId?: string | null;
+  model: string;
+  result: any;
+  latencyMs: number;
+}) {
+  try {
+    const [run] = await db
+      .insert(generationRuns)
+      .values({
+        ...data,
+        userId: data.userId || null,
+        chatId: data.chatId || null,
+        ruleSetId: data.ruleSetId || null,
+      })
+      .returning();
+    return run;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to insert generation run');
+  }
+}
+
+export async function insertResponseFeedback(data: {
+  generationRunId: string;
+  optionType: string;
+  optionText: string;
+  feedback: string;
+  selected?: boolean;
+}) {
+  try {
+    const [feedbackRecord] = await db
+      .insert(responseFeedback)
+      .values({
+        ...data,
+        selected: data.selected ?? false,
+      })
+      .returning();
+    return feedbackRecord;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to insert response feedback');
+  }
+}
+

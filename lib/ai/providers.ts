@@ -3,8 +3,18 @@ import {
   extractReasoningMiddleware,
   wrapLanguageModel,
 } from 'ai';
-import { gateway } from '@ai-sdk/gateway';
+import { createOpenAI } from '@ai-sdk/openai';
 import { isTestEnvironment } from '../constants';
+
+export const openaiProvider = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+export const deepseekProvider = createOpenAI({
+  name: 'deepseek',
+  apiKey: process.env.DEEPSEEK_API_KEY,
+  baseURL: 'https://api.deepseek.com/v1',
+});
 
 export const myProvider = isTestEnvironment
   ? (() => {
@@ -25,12 +35,12 @@ export const myProvider = isTestEnvironment
     })()
   : customProvider({
       languageModels: {
-        'chat-model': gateway.languageModel('xai/grok-2-vision-1212'),
+        'chat-model': deepseekProvider('deepseek-chat') as any,
         'chat-model-reasoning': wrapLanguageModel({
-          model: gateway.languageModel('xai/grok-3-mini'),
+          model: deepseekProvider('deepseek-reasoner') as any,
           middleware: extractReasoningMiddleware({ tagName: 'think' }),
-        }),
-        'title-model': gateway.languageModel('xai/grok-2-1212'),
-        'artifact-model': gateway.languageModel('xai/grok-2-1212'),
+        }) as any,
+        'title-model': openaiProvider('gpt-4o-mini') as any,
+        'artifact-model': openaiProvider('gpt-4o-mini') as any,
       },
     });

@@ -23,6 +23,8 @@ import { ChatSDKError } from '@/lib/errors';
 import type { Attachment, ChatMessage } from '@/lib/types';
 import type { AppUsage } from '@/lib/usage';
 import { useDataStream } from './data-stream-provider';
+import { RAGAssistantPanel } from './rag-assistant-panel';
+import { Sparkles } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,6 +68,17 @@ export function Chat({
   const [showCreditCardAlert, setShowCreditCardAlert] = useState(false);
   const [currentModelId, setCurrentModelId] = useState(initialChatModel);
   const currentModelIdRef = useRef(currentModelId);
+
+  const [controls, setControls] = useState({
+    platform: 'Tinder',
+    category: 'apertura',
+    objective: 'calibrar_charla',
+    responseType: 'auto',
+    intensity: 'media',
+    extension: 'breve',
+    customGoal: '',
+  });
+  const [isRAGPanelOpen, setIsRAGPanelOpen] = useState(true);
   
   useEffect(() => {
     currentModelIdRef.current = currentModelId;
@@ -157,47 +170,74 @@ export function Chat({
 
   return (
     <>
-      <div className="overscroll-behavior-contain flex h-dvh min-w-0 touch-pan-y flex-col bg-background">
-        <ChatHeader
-          chatId={id}
-          selectedVisibilityType={initialVisibilityType}
-          isReadonly={isReadonly}
-          session={session}
-        />
+      <div className="flex h-dvh w-dvw overflow-hidden bg-background">
+        <div className="flex-1 flex flex-col h-full min-w-0 overscroll-behavior-contain touch-pan-y relative">
+          <ChatHeader
+            chatId={id}
+            selectedVisibilityType={initialVisibilityType}
+            isReadonly={isReadonly}
+            session={session}
+          />
 
-        <Messages
-          chatId={id}
-          status={status}
-          votes={votes}
-          messages={messages}
-          setMessages={setMessages}
-          regenerate={regenerate}
-          isReadonly={isReadonly}
-          isArtifactVisible={isArtifactVisible}
-          selectedModelId={initialChatModel}
-        />
+          <Messages
+            chatId={id}
+            status={status}
+            votes={votes}
+            messages={messages}
+            setMessages={setMessages}
+            regenerate={regenerate}
+            isReadonly={isReadonly}
+            isArtifactVisible={isArtifactVisible}
+            selectedModelId={initialChatModel}
+          />
 
-        <div className="sticky bottom-0 z-1 mx-auto flex w-full max-w-4xl gap-2 border-t-0 bg-background px-2 pb-3 md:px-4 md:pb-4">
-          {!isReadonly && (
-            <MultimodalInput
-              chatId={id}
-              input={input}
-              setInput={setInput}
-              status={status}
-              stop={stop}
-              attachments={attachments}
-              setAttachments={setAttachments}
-              messages={messages}
-              setMessages={setMessages}
-              sendMessage={sendMessage}
-              selectedVisibilityType={visibilityType}
-              selectedModelId={currentModelId}
-              onModelChange={setCurrentModelId}
-              usage={usage}
-            />
-          )}
+          <div className="sticky bottom-0 z-1 mx-auto flex w-full max-w-4xl gap-2 border-t-0 bg-background px-2 pb-3 md:px-4 md:pb-4">
+            {!isReadonly && (
+              <MultimodalInput
+                chatId={id}
+                input={input}
+                setInput={setInput}
+                status={status}
+                stop={stop}
+                attachments={attachments}
+                setAttachments={setAttachments}
+                messages={messages}
+                setMessages={setMessages}
+                sendMessage={sendMessage}
+                selectedVisibilityType={visibilityType}
+                selectedModelId={currentModelId}
+                onModelChange={setCurrentModelId}
+                usage={usage}
+                controls={controls}
+                setControls={setControls}
+              />
+            )}
+          </div>
         </div>
+
+        {isRAGPanelOpen && !isArtifactVisible && (
+          <div className="w-[450px] shrink-0 border-l border-border h-full bg-card">
+            <RAGAssistantPanel
+              messages={messages}
+              status={status}
+              onRegenerate={regenerate}
+              onClose={() => setIsRAGPanelOpen(false)}
+            />
+          </div>
+        )}
       </div>
+
+      {!isRAGPanelOpen && !isArtifactVisible && (
+        <button
+          type="button"
+          aria-label="Abrir Asistente RAG"
+          onClick={() => setIsRAGPanelOpen(true)}
+          className="fixed right-6 bottom-24 bg-primary text-primary-foreground p-3 rounded-full shadow-lg hover:bg-primary/90 flex items-center justify-center z-40 transition-transform hover:scale-105 active:scale-95 duration-200"
+          title="Abrir Asistente RAG"
+        >
+          <Sparkles className="w-5 h-5 animate-pulse" />
+        </button>
+      )}
 
       <Artifact
         chatId={id}

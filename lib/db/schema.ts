@@ -10,6 +10,8 @@ import {
   primaryKey,
   foreignKey,
   boolean,
+  integer,
+  decimal,
 } from 'drizzle-orm/pg-core';
 import type { AppUsage } from '../usage';
 
@@ -171,3 +173,87 @@ export const stream = pgTable(
 );
 
 export type Stream = InferSelectModel<typeof stream>;
+
+// Custom vector type for pgvector
+import { customType } from 'drizzle-orm/pg-core';
+
+export const vector = customType<{ data: number[] }>({
+  dataType() {
+    return 'vector(768)';
+  },
+  toDriver(value: number[]) {
+    return JSON.stringify(value);
+  },
+  fromDriver(value: unknown) {
+    if (typeof value === 'string') {
+      return value.slice(1, -1).split(',').map(Number);
+    }
+    return value as number[];
+  },
+});
+
+export const chatExamples = pgTable('chat_examples', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  category: text('category').notNull(),
+  situationalContext: text('situational_context').notNull(),
+  lastMessage: text('last_message').notNull(),
+  psychologicalAnalysis: text('psychological_analysis').notNull(),
+  options: jsonb('options').notNull(),
+  searchableText: text('searchable_text').notNull(),
+  platform: text('platform'),
+  goal: text('goal'),
+  strategyTags: text('strategy_tags').array(),
+  investmentLevel: text('investment_level'),
+  intensity: text('intensity'),
+  qualityScore: decimal('quality_score', { precision: 3, scale: 2 }).default('1.00'),
+  embedding: vector('embedding').notNull(),
+  sourceHash: text('source_hash').unique().notNull(),
+  active: boolean('active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export type ChatExample = InferSelectModel<typeof chatExamples>;
+
+export const assistantRuleSets = pgTable('assistant_rule_sets', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  name: text('name').notNull(),
+  version: integer('version').notNull(),
+  systemPrompt: text('system_prompt').notNull(),
+  rules: jsonb('rules').notNull(),
+  active: boolean('active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export type AssistantRuleSet = InferSelectModel<typeof assistantRuleSets>;
+
+export const generationRuns = pgTable('generation_runs', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  userId: uuid('user_id').references(() => user.id),
+  chatId: uuid('chat_id'),
+  inputSnapshot: jsonb('input_snapshot').notNull(),
+  controls: jsonb('controls').notNull(),
+  detectedCategory: text('detected_category').notNull(),
+  retrievedExampleIds: uuid('retrieved_example_ids').array(),
+  retrievalScores: jsonb('retrieval_scores').notNull(),
+  ruleSetId: uuid('rule_set_id').references(() => assistantRuleSets.id),
+  model: text('model').notNull(),
+  result: jsonb('result').notNull(),
+  latencyMs: integer('latency_ms').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export type GenerationRun = InferSelectModel<typeof generationRuns>;
+
+export const responseFeedback = pgTable('response_feedback', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  generationRunId: uuid('generation_run_id').references(() => generationRuns.id),
+  optionType: text('option_type').notNull(),
+  optionText: text('option_text').notNull(),
+  feedback: text('feedback').notNull(),
+  selected: boolean('selected').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export type ResponseFeedback = InferSelectModel<typeof responseFeedback>;
+
