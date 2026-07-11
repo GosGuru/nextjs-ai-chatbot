@@ -6,15 +6,46 @@ import {
 import { createOpenAI } from '@ai-sdk/openai';
 import { isTestEnvironment } from '../constants';
 
-export const openaiProvider = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function compatModel(model: any) {
+  if (model && typeof model === 'object') {
+    return new Proxy(model, {
+      get(target, prop) {
+        if (prop === 'specificationVersion') {
+          return 'v2';
+        }
+        return Reflect.get(target, prop);
+      }
+    });
+  }
+  return model;
+}
 
-export const deepseekProvider = createOpenAI({
+function wrapProvider(provider: any) {
+  return new Proxy(provider, {
+    apply(target, thisArg, argumentsList) {
+      return compatModel(Reflect.apply(target, thisArg, argumentsList));
+    },
+    get(target, prop) {
+      const value = Reflect.get(target, prop);
+      if (typeof value === 'function') {
+        return function(this: any, ...args: any[]) {
+          return compatModel(value.apply(this, args));
+        };
+      }
+      return value;
+    }
+  });
+}
+
+export const openaiProvider = wrapProvider(createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+}));
+
+export const deepseekProvider = wrapProvider(createOpenAI({
   name: 'deepseek',
   apiKey: process.env.DEEPSEEK_API_KEY,
   baseURL: 'https://api.deepseek.com/v1',
-});
+}));
 
 export const myProvider = isTestEnvironment
   ? (() => {
