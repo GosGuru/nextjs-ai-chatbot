@@ -15,6 +15,7 @@ import {
 } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import { getDatabaseUrl } from './database-url';
 
 import {
   user,
@@ -46,8 +47,12 @@ import type { AppUsage } from '../usage';
 // use the Drizzle adapter for Auth.js / NextAuth
 // https://authjs.dev/reference/adapter/drizzle
 
-// biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(process.env.POSTGRES_URL!);
+const client = postgres(getDatabaseUrl(), {
+  max: 1,
+  prepare: false,
+  connect_timeout: 10,
+  idle_timeout: 20,
+});
 const db = drizzle(client);
 
 export async function getUser(email: string): Promise<Array<User>> {

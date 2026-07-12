@@ -6,17 +6,17 @@ import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { chatExamples, assistantRuleSets } from './schema';
 import { generateEmbedding } from '../ai/local-vectorizer';
+import { getDatabaseUrl } from './database-url';
 
 // Load environment variables from .env.local
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
-const connectionString = process.env.POSTGRES_URL;
-if (!connectionString) {
-  console.error('CRITICAL: POSTGRES_URL environment variable is missing.');
-  process.exit(1);
-}
-
-const client = postgres(connectionString, { max: 1 });
+const client = postgres(getDatabaseUrl(), {
+  max: 1,
+  prepare: false,
+  connect_timeout: 15,
+  idle_timeout: 20,
+});
 const db = drizzle(client);
 
 async function run() {
