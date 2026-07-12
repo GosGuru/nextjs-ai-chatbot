@@ -7,26 +7,48 @@ config({
   path: '.env.local',
 });
 
+const MIGRATION_LOCK_ID = 2_026_071_200;
+
 const runMigrate = async () => {
-  if (!process.env.POSTGRES_URL) {
-    throw new Error('POSTGRES_URL is not defined');
+  const postgresUrl = process.env.POSTGRES_URL;
+
+  if (!postgresUrl) {
+    throw new Error(
+      'POSTGRES_URL is not defined. Configure the database before deploying.',
+    );
   }
 
-  const connection = postgres(process.env.POSTGRES_URL, { max: 1 });
+  const connection = postgres(postgresUrl, {
+    max: 1,
+    prepare: false,
+    connect_timeout: 15,
+    idle_timeout: 20,
+  });
+
   const db = drizzle(connection);
-
-  console.log('⏳ Running migrations...');
-
   const start = Date.now();
-  await migrate(db, { migrationsFolder: './lib/db/migrations' });
-  const end = Date.now();
+  let lockAcquired = false;
 
-  console.log('✅ Migrations completed in', end - start, 'ms');
-  process.exit(0);
+  try {
+    console.log('Waiting for the database migration lock...');
+    await connection`SELECT pg_advisory_lock(${MIGRATION_LOCK_ID})`;
+    lockAcquired = true;
+
+    console.log('Running database migrations...');
+    await migrate(db, { migrationsFolder: './lib/db/migrations' });
+
+    console.log(`Database migrations completed in ${Date.now() - start}ms`);
+  } finally {
+    if (lockAcquired) {
+      await connection`SELECT pg_advisory_unlock(${MIGRATION_LOCK_ID})`;
+    }
+
+    await connection.end({ timeout: 5 });
+  }
 };
 
-runMigrate().catch((err) => {
-  console.error('❌ Migration failed');
-  console.error(err);
-  process.exit(1);
+runMigrate().catch((error) => {
+  console.error('Database migration failed');
+  console.error(error);
+  process.exitCode = 1;
 });
