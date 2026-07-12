@@ -64,8 +64,7 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Run database migrations
-        run: pnpm db:migrate
-
-      - name: Build
-        run: pnpm build
+      - name: Validate production deployment
+        env:
+          VERCEL_ENV: production
+        run: pnpm build:vercel
