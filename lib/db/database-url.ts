@@ -11,3 +11,19 @@ export function getDatabaseUrl(options?: { required?: boolean }) {
 
   return databaseUrl;
 }
+
+export function getMigrationDatabaseUrl() {
+  const databaseUrl =
+    process.env.POSTGRES_URL_NON_POOLING ??
+    process.env.DATABASE_URL_UNPOOLED ??
+    process.env.POSTGRES_URL ??
+    process.env.DATABASE_URL;
+
+  if (!databaseUrl) {
+    throw new Error(
+      'Migration database URL is not configured. Set DATABASE_URL_UNPOOLED, POSTGRES_URL_NON_POOLING, DATABASE_URL, or POSTGRES_URL.',
+    );
+  }
+
+  return databaseUrl;
+}
