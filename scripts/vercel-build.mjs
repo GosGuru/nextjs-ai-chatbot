@@ -20,11 +20,15 @@ const forceMigrations = process.env.RUN_DATABASE_MIGRATIONS === 'true';
 const shouldMigrate = isProduction || forceMigrations;
 
 if (shouldMigrate) {
-  const databaseUrl = process.env.POSTGRES_URL ?? process.env.DATABASE_URL;
+  const migrationDatabaseUrl =
+    process.env.POSTGRES_URL_NON_POOLING ??
+    process.env.DATABASE_URL_UNPOOLED ??
+    process.env.POSTGRES_URL ??
+    process.env.DATABASE_URL;
 
-  if (!databaseUrl) {
+  if (!migrationDatabaseUrl) {
     throw new Error(
-      'Production deployment requires POSTGRES_URL or DATABASE_URL.',
+      'Production deployment requires DATABASE_URL_UNPOOLED, POSTGRES_URL_NON_POOLING, DATABASE_URL, or POSTGRES_URL.',
     );
   }
 
