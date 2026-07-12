@@ -6,10 +6,19 @@ import { ThemeProvider } from '@/components/theme-provider';
 import './globals.css';
 import { SessionProvider } from 'next-auth/react';
 
+const applicationUrl =
+  process.env.NEXT_PUBLIC_APP_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : 'http://localhost:3000');
+
 export const metadata: Metadata = {
-  metadataBase: new URL('https://chat.vercel.ai'),
-  title: 'Next.js Chatbot Template',
-  description: 'Next.js chatbot template using the AI SDK.',
+  metadataBase: new URL(applicationUrl),
+  title: {
+    default: 'Chatbot DMs',
+    template: '%s | Chatbot DMs',
+  },
+  description: 'Asistente conversacional para mensajes directos.',
 };
 
 export const viewport = {
@@ -55,11 +64,11 @@ export default async function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="es"
       // `next-themes` injects an extra classname to the body element to avoid
       // visual flicker before hydration. Hence the `suppressHydrationWarning`
       // prop is necessary to avoid the React hydration mismatch warning.
-      // https://github.com/pacocoursey/next-themes?tab=readme-ov-file#with-app
+      // https://github.com/pacocoursey/next-themes?tab=readme-ov-file#with
       suppressHydrationWarning
       className={`${geist.variable} ${geistMono.variable}`}
     >
