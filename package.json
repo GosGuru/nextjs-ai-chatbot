@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --turbo",
     "build": "next build",
-    "build:vercel": "pnpm db:migrate && pnpm build",
+    "build:vercel": "node scripts/vercel-build.mjs",
     "typecheck": "tsc --noEmit",
     "start": "next start",
     "lint": "biome lint --write --unsafe",
