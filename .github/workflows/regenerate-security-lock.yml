@@ -2,8 +2,6 @@ name: Regenerate dependency lock
 
 on:
   push:
-    branches:
-      - main
     paths:
       - package.json
 
@@ -30,7 +28,7 @@ jobs:
       - name: Regenerate lockfile
         run: pnpm install --lockfile-only --no-frozen-lockfile
 
-      - name: Verify patched framework versions
+      - name: Verify framework versions
         run: |
           node -e "const p=require('./package.json'); if(p.dependencies.next!=='15.3.9'||p.dependencies.react!=='19.0.1'||p.dependencies['react-dom']!=='19.0.1') process.exit(1)"
 
@@ -42,6 +40,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "Lockfile already up to date"
           else
-            git commit -m "chore: regenerate lockfile for patched Next.js"
+            git commit -m "chore: regenerate dependency lockfile"
             git push
           fi
