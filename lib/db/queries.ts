@@ -133,7 +133,7 @@ export async function deleteChatById({ id }: { id: string }) {
     await getDb().delete(message).where(eq(message.chatId, id));
     await getDb().delete(stream).where(eq(stream.chatId, id));
 
-    const [chatsDeleted] = await db
+    const [chatsDeleted] = await getDb()
       .delete(chat)
       .where(eq(chat.id, id))
       .returning();
@@ -161,7 +161,7 @@ export async function getChatsByUserId({
     const extendedLimit = limit + 1;
 
     const query = (whereCondition?: SQL<any>) =>
-      db
+      getDb()
         .select()
         .from(chat)
         .where(
@@ -175,7 +175,7 @@ export async function getChatsByUserId({
     let filteredChats: Array<Chat> = [];
 
     if (startingAfter) {
-      const [selectedChat] = await db
+      const [selectedChat] = await getDb()
         .select()
         .from(chat)
         .where(eq(chat.id, startingAfter))
@@ -190,7 +190,7 @@ export async function getChatsByUserId({
 
       filteredChats = await query(gt(chat.createdAt, selectedChat.createdAt));
     } else if (endingBefore) {
-      const [selectedChat] = await db
+      const [selectedChat] = await getDb()
         .select()
         .from(chat)
         .where(eq(chat.id, endingBefore))
@@ -249,7 +249,7 @@ export async function saveMessages({
 
 export async function getMessagesByChatId({ id }: { id: string }) {
   try {
-    return await db
+    return await getDb()
       .select()
       .from(message)
       .where(eq(message.chatId, id))
@@ -272,13 +272,13 @@ export async function voteMessage({
   type: 'up' | 'down';
 }) {
   try {
-    const [existingVote] = await db
+    const [existingVote] = await getDb()
       .select()
       .from(vote)
       .where(and(eq(vote.messageId, messageId)));
 
     if (existingVote) {
-      return await db
+      return await getDb()
         .update(vote)
         .set({ isUpvoted: type === 'up' })
         .where(and(eq(vote.messageId, messageId), eq(vote.chatId, chatId)));
@@ -318,7 +318,7 @@ export async function saveDocument({
   userId: string;
 }) {
   try {
-    return await db
+    return await getDb()
       .insert(document)
       .values({
         id,
@@ -336,7 +336,7 @@ export async function saveDocument({
 
 export async function getDocumentsById({ id }: { id: string }) {
   try {
-    const documents = await db
+    const documents = await getDb()
       .select()
       .from(document)
       .where(eq(document.id, id))
@@ -353,7 +353,7 @@ export async function getDocumentsById({ id }: { id: string }) {
 
 export async function getDocumentById({ id }: { id: string }) {
   try {
-    const [selectedDocument] = await db
+    const [selectedDocument] = await getDb()
       .select()
       .from(document)
       .where(eq(document.id, id))
@@ -376,7 +376,7 @@ export async function deleteDocumentsByIdAfterTimestamp({
   timestamp: Date;
 }) {
   try {
-    await db
+    await getDb()
       .delete(suggestion)
       .where(
         and(
@@ -385,7 +385,7 @@ export async function deleteDocumentsByIdAfterTimestamp({
         ),
       );
 
-    return await db
+    return await getDb()
       .delete(document)
       .where(and(eq(document.id, id), gt(document.createdAt, timestamp)))
       .returning();
@@ -418,7 +418,7 @@ export async function getSuggestionsByDocumentId({
   documentId: string;
 }) {
   try {
-    return await db
+    return await getDb()
       .select()
       .from(suggestion)
       .where(and(eq(suggestion.documentId, documentId)));
@@ -449,7 +449,7 @@ export async function deleteMessagesByChatIdAfterTimestamp({
   timestamp: Date;
 }) {
   try {
-    const messagesToDelete = await db
+    const messagesToDelete = await getDb()
       .select({ id: message.id })
       .from(message)
       .where(
@@ -459,13 +459,13 @@ export async function deleteMessagesByChatIdAfterTimestamp({
     const messageIds = messagesToDelete.map((message) => message.id);
 
     if (messageIds.length > 0) {
-      await db
+      await getDb()
         .delete(vote)
         .where(
           and(eq(vote.chatId, chatId), inArray(vote.messageId, messageIds)),
         );
 
-      return await db
+      return await getDb()
         .delete(message)
         .where(
           and(eq(message.chatId, chatId), inArray(message.id, messageIds)),
@@ -505,7 +505,7 @@ export async function updateChatLastContextById({
   context: AppUsage;
 }) {
   try {
-    return await db
+    return await getDb()
       .update(chat)
       .set({ lastContext: context })
       .where(eq(chat.id, chatId));
@@ -527,7 +527,7 @@ export async function getMessageCountByUserId({
       Date.now() - differenceInHours * 60 * 60 * 1000,
     );
 
-    const [stats] = await db
+    const [stats] = await getDb()
       .select({ count: count(message.id) })
       .from(message)
       .innerJoin(chat, eq(message.chatId, chat.id))
@@ -557,7 +557,7 @@ export async function createStreamId({
   chatId: string;
 }) {
   try {
-    await db
+    await getDb()
       .insert(stream)
       .values({ id: streamId, chatId, createdAt: new Date() });
   } catch (error) {
@@ -570,7 +570,7 @@ export async function createStreamId({
 
 export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
   try {
-    const streamIds = await db
+    const streamIds = await getDb()
       .select({ id: stream.id })
       .from(stream)
       .where(eq(stream.chatId, chatId))
@@ -593,7 +593,7 @@ export async function findSimilarExamples(
 ): Promise<Array<ChatExample>> {
   try {
     const vectorStr = JSON.stringify(promptEmbedding);
-    return await db
+    return await getDb()
       .select()
       .from(chatExamples)
       .where(eq(chatExamples.active, true))
@@ -606,7 +606,7 @@ export async function findSimilarExamples(
 
 export async function getActiveRuleSet(): Promise<AssistantRuleSet | null> {
   try {
-    const results = await db
+    const results = await getDb()
       .select()
       .from(assistantRuleSets)
       .where(eq(assistantRuleSets.active, true))
@@ -643,7 +643,7 @@ export async function insertGenerationRun(data: {
   latencyMs: number;
 }) {
   try {
-    const [run] = await db
+    const [run] = await getDb()
       .insert(generationRuns)
       .values({
         ...data,
@@ -666,7 +666,7 @@ export async function insertResponseFeedback(data: {
   selected?: boolean;
 }) {
   try {
-    const [feedbackRecord] = await db
+    const [feedbackRecord] = await getDb()
       .insert(responseFeedback)
       .values({
         ...data,
