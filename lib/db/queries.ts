@@ -47,17 +47,27 @@ import type { AppUsage } from '../usage';
 // use the Drizzle adapter for Auth.js / NextAuth
 // https://authjs.dev/reference/adapter/drizzle
 
-const client = postgres(getDatabaseUrl(), {
-  max: 1,
-  prepare: false,
-  connect_timeout: 10,
-  idle_timeout: 20,
-});
-const db = drizzle(client);
+type Database = ReturnType<typeof drizzle>;
+let database: Database | undefined;
+
+function getDb() {
+  if (!database) {
+    const client = postgres(getDatabaseUrl(), {
+      max: 1,
+      prepare: false,
+      connect_timeout: 10,
+      idle_timeout: 20,
+    });
+
+    database = drizzle(client);
+  }
+
+  return database;
+}
 
 export async function getUser(email: string): Promise<Array<User>> {
   try {
-    return await db.select().from(user).where(eq(user.email, email));
+    return await getDb().select().from(user).where(eq(user.email, email));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -70,7 +80,7 @@ export async function createUser(email: string, password: string) {
   const hashedPassword = generateHashedPassword(password);
 
   try {
-    return await db.insert(user).values({ email, password: hashedPassword });
+    return await getDb().insert(user).values({ email, password: hashedPassword });
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to create user');
   }
@@ -81,7 +91,7 @@ export async function createGuestUser() {
   const password = generateHashedPassword(generateUUID());
 
   try {
-    return await db.insert(user).values({ email, password }).returning({
+    return await getDb().insert(user).values({ email, password }).returning({
       id: user.id,
       email: user.email,
     });
@@ -105,7 +115,7 @@ export async function saveChat({
   visibility: VisibilityType;
 }) {
   try {
-    return await db.insert(chat).values({
+    return await getDb().insert(chat).values({
       id,
       createdAt: new Date(),
       userId,
@@ -119,9 +129,9 @@ export async function saveChat({
 
 export async function deleteChatById({ id }: { id: string }) {
   try {
-    await db.delete(vote).where(eq(vote.chatId, id));
-    await db.delete(message).where(eq(message.chatId, id));
-    await db.delete(stream).where(eq(stream.chatId, id));
+    await getDb().delete(vote).where(eq(vote.chatId, id));
+    await getDb().delete(message).where(eq(message.chatId, id));
+    await getDb().delete(stream).where(eq(stream.chatId, id));
 
     const [chatsDeleted] = await db
       .delete(chat)
@@ -214,7 +224,7 @@ export async function getChatsByUserId({
 
 export async function getChatById({ id }: { id: string }) {
   try {
-    const [selectedChat] = await db.select().from(chat).where(eq(chat.id, id));
+    const [selectedChat] = await getDb().select().from(chat).where(eq(chat.id, id));
     if (!selectedChat) {
       return null;
     }
@@ -231,7 +241,7 @@ export async function saveMessages({
   messages: Array<DBMessage>;
 }) {
   try {
-    return await db.insert(message).values(messages);
+    return await getDb().insert(message).values(messages);
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to save messages');
   }
@@ -273,7 +283,7 @@ export async function voteMessage({
         .set({ isUpvoted: type === 'up' })
         .where(and(eq(vote.messageId, messageId), eq(vote.chatId, chatId)));
     }
-    return await db.insert(vote).values({
+    return await getDb().insert(vote).values({
       chatId,
       messageId,
       isUpvoted: type === 'up',
@@ -285,7 +295,7 @@ export async function voteMessage({
 
 export async function getVotesByChatId({ id }: { id: string }) {
   try {
-    return await db.select().from(vote).where(eq(vote.chatId, id));
+    return await getDb().select().from(vote).where(eq(vote.chatId, id));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -393,7 +403,7 @@ export async function saveSuggestions({
   suggestions: Array<Suggestion>;
 }) {
   try {
-    return await db.insert(suggestion).values(suggestions);
+    return await getDb().insert(suggestion).values(suggestions);
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -422,7 +432,7 @@ export async function getSuggestionsByDocumentId({
 
 export async function getMessageById({ id }: { id: string }) {
   try {
-    return await db.select().from(message).where(eq(message.id, id));
+    return await getDb().select().from(message).where(eq(message.id, id));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -477,7 +487,7 @@ export async function updateChatVisiblityById({
   visibility: 'private' | 'public';
 }) {
   try {
-    return await db.update(chat).set({ visibility }).where(eq(chat.id, chatId));
+    return await getDb().update(chat).set({ visibility }).where(eq(chat.id, chatId));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
