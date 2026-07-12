@@ -41,6 +41,9 @@ importers:
       '@icons-pack/react-simple-icons':
         specifier: ^13.7.0
         version: 13.7.0(react@19.0.1)
+      '@neondatabase/serverless':
+        specifier: 1.1.0
+        version: 1.1.0
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
@@ -122,6 +125,9 @@ importers:
       bcrypt-ts:
         specifier: ^5.0.2
         version: 5.0.3
+      bufferutil:
+        specifier: ^4.1.0
+        version: 4.1.0
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.1
@@ -145,7 +151,7 @@ importers:
         version: 16.4.7
       drizzle-orm:
         specifier: ^0.34.0
-        version: 0.34.1(@neondatabase/serverless@0.9.5)(@opentelemetry/api@1.9.0)(@types/pg@8.11.6)(@types/react@19.0.14)(@vercel/postgres@0.10.0)(postgres@3.4.5)(react@19.0.1)
+        version: 0.34.1(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.0)(@types/pg@8.11.6)(@types/react@19.0.14)(@vercel/postgres@0.10.0)(postgres@3.4.5)(react@19.0.1)
       embla-carousel-react:
         specifier: ^8.6.0
         version: 8.6.0(react@19.0.1)
@@ -175,7 +181,7 @@ importers:
         version: 0.3.0(react-dom@19.0.1(react@19.0.1))(react@19.0.1)
       openai:
         specifier: ^6.46.0
-        version: 6.46.0(ws@8.18.1(bufferutil@4.0.9))(zod@3.25.76)
+        version: 6.46.0(ws@8.21.0(bufferutil@4.1.0))(zod@3.25.76)
       orderedmap:
         specifier: ^2.1.1
         version: 2.1.1
@@ -260,6 +266,9 @@ importers:
       usehooks-ts:
         specifier: ^3.1.0
         version: 3.1.1(react@19.0.1)
+      ws:
+        specifier: ^8.21.0
+        version: 8.21.0(bufferutil@4.1.0)
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -297,6 +306,9 @@ importers:
       '@types/react-syntax-highlighter':
         specifier: ^15.5.13
         version: 15.5.13
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       drizzle-kit:
         specifier: ^0.25.0
         version: 0.25.0
@@ -1188,6 +1200,10 @@ packages:
 
   '@neondatabase/serverless@0.9.5':
     resolution: {integrity: sha512-siFas6gItqv6wD/pZnvdu34wEqgG3nSE6zWZdq5j2DEsa+VvX8i/5HXJOo06qrw5axPXn+lGCxeR+NLaSPIXug==}
+
+  '@neondatabase/serverless@1.1.0':
+    resolution: {integrity: sha512-r3ZZhRjEcfEdKIZnoB1RusNgvHuaBRqfCzV4Gi+5A9yUX0S4HTws/ASWqt13wL4y4I+0rqsWGdA2w7EQXHi3+Q==}
+    engines: {node: '>=19.0.0'}
 
   '@next/env@15.3.9':
     resolution: {integrity: sha512-I7wMCjlHc85EvAebNYJCRBZ+shdrGhcIXBviWmDzGYXwTQ+WrYpfg1LBOnTK1Bn3b+ud5apesNObXKEGqi/C3g==}
@@ -2305,6 +2321,9 @@ packages:
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
 
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
+
   '@typescript-eslint/eslint-plugin@8.63.0':
     resolution: {integrity: sha512-rvwSgqT+DHpWdzfSzPatRLm02a0GlESt++9iy3hLCDY4BgkaLcl8LBi9Yh7XGFBpwcBE/K3024QuXWTpbz4FfQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
@@ -2580,8 +2599,8 @@ packages:
   buffer-from@1.1.2:
     resolution: {integrity: sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==}
 
-  bufferutil@4.0.9:
-    resolution: {integrity: sha512-WDtdLmJvAuNNPzByAYpRo2rF1Mmradw6gvWsQKf63476DDXmomT9zUiGypLcG4ibIM67vhAj8jJRdbmEws2Aqw==}
+  bufferutil@4.1.0:
+    resolution: {integrity: sha512-ZMANVnAixE6AWWnPzlW2KpUrxhm9woycYvPOo67jWHyFowASTEd9s+QN1EIMsSDtwhIxN4sWE1jotpuDUIgyIw==}
     engines: {node: '>=6.14.2'}
 
   busboy@1.6.0:
@@ -5154,8 +5173,8 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
-  ws@8.18.1:
-    resolution: {integrity: sha512-RKW2aJZMXeMxVpnZ6bck+RswznaxmzdULiBr6KY7XkTnW8uvt0iT9H5DkHUChXrc+uurzwa0rVI16n/Xzjdz1w==}
+  ws@8.21.0:
+    resolution: {integrity: sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -5835,6 +5854,8 @@ snapshots:
   '@neondatabase/serverless@0.9.5':
     dependencies:
       '@types/pg': 8.11.6
+
+  '@neondatabase/serverless@1.1.0': {}
 
   '@next/env@15.3.9': {}
 
@@ -6899,6 +6920,10 @@ snapshots:
 
   '@types/unist@3.0.3': {}
 
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 22.13.10
+
   '@typescript-eslint/eslint-plugin@8.63.0(@typescript-eslint/parser@7.2.0(eslint@8.57.1)(typescript@5.8.2))(eslint@8.57.1)(typescript@5.8.2)':
     dependencies:
       '@eslint-community/regexpp': 4.12.2
@@ -7045,8 +7070,8 @@ snapshots:
   '@vercel/postgres@0.10.0':
     dependencies:
       '@neondatabase/serverless': 0.9.5
-      bufferutil: 4.0.9
-      ws: 8.18.1(bufferutil@4.0.9)
+      bufferutil: 4.1.0
+      ws: 8.21.0(bufferutil@4.1.0)
     transitivePeerDependencies:
       - utf-8-validate
 
@@ -7197,7 +7222,7 @@ snapshots:
 
   buffer-from@1.1.2: {}
 
-  bufferutil@4.0.9:
+  bufferutil@4.1.0:
     dependencies:
       node-gyp-build: 4.8.4
 
@@ -7619,9 +7644,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.34.1(@neondatabase/serverless@0.9.5)(@opentelemetry/api@1.9.0)(@types/pg@8.11.6)(@types/react@19.0.14)(@vercel/postgres@0.10.0)(postgres@3.4.5)(react@19.0.1):
+  drizzle-orm@0.34.1(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.0)(@types/pg@8.11.6)(@types/react@19.0.14)(@vercel/postgres@0.10.0)(postgres@3.4.5)(react@19.0.1):
     optionalDependencies:
-      '@neondatabase/serverless': 0.9.5
+      '@neondatabase/serverless': 1.1.0
       '@opentelemetry/api': 1.9.0
       '@types/pg': 8.11.6
       '@types/react': 19.0.14
@@ -9305,9 +9330,9 @@ snapshots:
       regex: 6.0.1
       regex-recursion: 6.0.2
 
-  openai@6.46.0(ws@8.18.1(bufferutil@4.0.9))(zod@3.25.76):
+  openai@6.46.0(ws@8.21.0(bufferutil@4.1.0))(zod@3.25.76):
     optionalDependencies:
-      ws: 8.18.1(bufferutil@4.0.9)
+      ws: 8.21.0(bufferutil@4.1.0)
       zod: 3.25.76
 
   optionator@0.9.4:
@@ -10383,9 +10408,9 @@ snapshots:
 
   wrappy@1.0.2: {}
 
-  ws@8.18.1(bufferutil@4.0.9):
+  ws@8.21.0(bufferutil@4.1.0):
     optionalDependencies:
-      bufferutil: 4.0.9
+      bufferutil: 4.1.0
 
   xtend@4.0.2: {}
 
