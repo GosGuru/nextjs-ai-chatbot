@@ -16,6 +16,22 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       AUTH_SECRET: ci-auth-secret-ci-auth-secret-ci-auth-secret
       NEXT_PUBLIC_APP_URL: http://localhost:3000
@@ -46,22 +62,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck
-        id: typecheck
-        continue-on-error: true
-        run: pnpm typecheck > typecheck.log 2>&1
+        run: pnpm typecheck
 
-      - name: Upload typecheck diagnostics
-        if: steps.typecheck.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: typecheck-log
-          path: typecheck.log
-
-      - name: Stop on typecheck failure
-        if: steps.typecheck.outcome == 'failure'
-        run: |
-          cat typecheck.log
-          exit 1
+      - name: Run database migrations
+        run: pnpm db:migrate
 
       - name: Build
         run: pnpm build
