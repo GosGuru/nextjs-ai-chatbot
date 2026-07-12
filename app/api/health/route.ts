@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import postgres from 'postgres';
+import { getDatabaseUrl } from '@/lib/db/database-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,9 +9,9 @@ const responseHeaders = {
 };
 
 export async function GET() {
-  const postgresUrl = process.env.POSTGRES_URL;
+  const databaseUrl = getDatabaseUrl({ required: false });
 
-  if (!postgresUrl) {
+  if (!databaseUrl) {
     return NextResponse.json(
       {
         status: 'degraded',
@@ -25,7 +26,7 @@ export async function GET() {
     );
   }
 
-  const connection = postgres(postgresUrl, {
+  const connection = postgres(databaseUrl, {
     max: 1,
     prepare: false,
     connect_timeout: 5,
