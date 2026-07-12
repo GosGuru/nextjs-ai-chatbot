@@ -1,3 +1,5 @@
+export function getDatabaseUrl(): string;
+export function getDatabaseUrl(options: { required: false }): string | undefined;
 export function getDatabaseUrl(options?: { required?: boolean }) {
   const databaseUrl = process.env.POSTGRES_URL ?? process.env.DATABASE_URL;
 
