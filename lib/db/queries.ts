@@ -15,6 +15,7 @@ import {
 } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import { getDatabaseUrl } from './database-url';
 
 import {
   user,
@@ -46,13 +47,27 @@ import type { AppUsage } from '../usage';
 // use the Drizzle adapter for Auth.js / NextAuth
 // https://authjs.dev/reference/adapter/drizzle
 
-// biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(process.env.POSTGRES_URL!);
-const db = drizzle(client);
+type Database = ReturnType<typeof drizzle>;
+let database: Database | undefined;
+
+function getDb() {
+  if (!database) {
+    const client = postgres(getDatabaseUrl(), {
+      max: 1,
+      prepare: false,
+      connect_timeout: 10,
+      idle_timeout: 20,
+    });
+
+    database = drizzle(client);
+  }
+
+  return database;
+}
 
 export async function getUser(email: string): Promise<Array<User>> {
   try {
-    return await db.select().from(user).where(eq(user.email, email));
+    return await getDb().select().from(user).where(eq(user.email, email));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -65,7 +80,7 @@ export async function createUser(email: string, password: string) {
   const hashedPassword = generateHashedPassword(password);
 
   try {
-    return await db.insert(user).values({ email, password: hashedPassword });
+    return await getDb().insert(user).values({ email, password: hashedPassword });
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to create user');
   }
@@ -76,7 +91,7 @@ export async function createGuestUser() {
   const password = generateHashedPassword(generateUUID());
 
   try {
-    return await db.insert(user).values({ email, password }).returning({
+    return await getDb().insert(user).values({ email, password }).returning({
       id: user.id,
       email: user.email,
     });
@@ -100,7 +115,7 @@ export async function saveChat({
   visibility: VisibilityType;
 }) {
   try {
-    return await db.insert(chat).values({
+    return await getDb().insert(chat).values({
       id,
       createdAt: new Date(),
       userId,
@@ -114,11 +129,11 @@ export async function saveChat({
 
 export async function deleteChatById({ id }: { id: string }) {
   try {
-    await db.delete(vote).where(eq(vote.chatId, id));
-    await db.delete(message).where(eq(message.chatId, id));
-    await db.delete(stream).where(eq(stream.chatId, id));
+    await getDb().delete(vote).where(eq(vote.chatId, id));
+    await getDb().delete(message).where(eq(message.chatId, id));
+    await getDb().delete(stream).where(eq(stream.chatId, id));
 
-    const [chatsDeleted] = await db
+    const [chatsDeleted] = await getDb()
       .delete(chat)
       .where(eq(chat.id, id))
       .returning();
@@ -146,7 +161,7 @@ export async function getChatsByUserId({
     const extendedLimit = limit + 1;
 
     const query = (whereCondition?: SQL<any>) =>
-      db
+      getDb()
         .select()
         .from(chat)
         .where(
@@ -160,7 +175,7 @@ export async function getChatsByUserId({
     let filteredChats: Array<Chat> = [];
 
     if (startingAfter) {
-      const [selectedChat] = await db
+      const [selectedChat] = await getDb()
         .select()
         .from(chat)
         .where(eq(chat.id, startingAfter))
@@ -175,7 +190,7 @@ export async function getChatsByUserId({
 
       filteredChats = await query(gt(chat.createdAt, selectedChat.createdAt));
     } else if (endingBefore) {
-      const [selectedChat] = await db
+      const [selectedChat] = await getDb()
         .select()
         .from(chat)
         .where(eq(chat.id, endingBefore))
@@ -209,7 +224,7 @@ export async function getChatsByUserId({
 
 export async function getChatById({ id }: { id: string }) {
   try {
-    const [selectedChat] = await db.select().from(chat).where(eq(chat.id, id));
+    const [selectedChat] = await getDb().select().from(chat).where(eq(chat.id, id));
     if (!selectedChat) {
       return null;
     }
@@ -226,7 +241,7 @@ export async function saveMessages({
   messages: Array<DBMessage>;
 }) {
   try {
-    return await db.insert(message).values(messages);
+    return await getDb().insert(message).values(messages);
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to save messages');
   }
@@ -234,7 +249,7 @@ export async function saveMessages({
 
 export async function getMessagesByChatId({ id }: { id: string }) {
   try {
-    return await db
+    return await getDb()
       .select()
       .from(message)
       .where(eq(message.chatId, id))
@@ -257,18 +272,18 @@ export async function voteMessage({
   type: 'up' | 'down';
 }) {
   try {
-    const [existingVote] = await db
+    const [existingVote] = await getDb()
       .select()
       .from(vote)
       .where(and(eq(vote.messageId, messageId)));
 
     if (existingVote) {
-      return await db
+      return await getDb()
         .update(vote)
         .set({ isUpvoted: type === 'up' })
         .where(and(eq(vote.messageId, messageId), eq(vote.chatId, chatId)));
     }
-    return await db.insert(vote).values({
+    return await getDb().insert(vote).values({
       chatId,
       messageId,
       isUpvoted: type === 'up',
@@ -280,7 +295,7 @@ export async function voteMessage({
 
 export async function getVotesByChatId({ id }: { id: string }) {
   try {
-    return await db.select().from(vote).where(eq(vote.chatId, id));
+    return await getDb().select().from(vote).where(eq(vote.chatId, id));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -303,7 +318,7 @@ export async function saveDocument({
   userId: string;
 }) {
   try {
-    return await db
+    return await getDb()
       .insert(document)
       .values({
         id,
@@ -321,7 +336,7 @@ export async function saveDocument({
 
 export async function getDocumentsById({ id }: { id: string }) {
   try {
-    const documents = await db
+    const documents = await getDb()
       .select()
       .from(document)
       .where(eq(document.id, id))
@@ -338,7 +353,7 @@ export async function getDocumentsById({ id }: { id: string }) {
 
 export async function getDocumentById({ id }: { id: string }) {
   try {
-    const [selectedDocument] = await db
+    const [selectedDocument] = await getDb()
       .select()
       .from(document)
       .where(eq(document.id, id))
@@ -361,7 +376,7 @@ export async function deleteDocumentsByIdAfterTimestamp({
   timestamp: Date;
 }) {
   try {
-    await db
+    await getDb()
       .delete(suggestion)
       .where(
         and(
@@ -370,7 +385,7 @@ export async function deleteDocumentsByIdAfterTimestamp({
         ),
       );
 
-    return await db
+    return await getDb()
       .delete(document)
       .where(and(eq(document.id, id), gt(document.createdAt, timestamp)))
       .returning();
@@ -388,7 +403,7 @@ export async function saveSuggestions({
   suggestions: Array<Suggestion>;
 }) {
   try {
-    return await db.insert(suggestion).values(suggestions);
+    return await getDb().insert(suggestion).values(suggestions);
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -403,7 +418,7 @@ export async function getSuggestionsByDocumentId({
   documentId: string;
 }) {
   try {
-    return await db
+    return await getDb()
       .select()
       .from(suggestion)
       .where(and(eq(suggestion.documentId, documentId)));
@@ -417,7 +432,7 @@ export async function getSuggestionsByDocumentId({
 
 export async function getMessageById({ id }: { id: string }) {
   try {
-    return await db.select().from(message).where(eq(message.id, id));
+    return await getDb().select().from(message).where(eq(message.id, id));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -434,7 +449,7 @@ export async function deleteMessagesByChatIdAfterTimestamp({
   timestamp: Date;
 }) {
   try {
-    const messagesToDelete = await db
+    const messagesToDelete = await getDb()
       .select({ id: message.id })
       .from(message)
       .where(
@@ -444,13 +459,13 @@ export async function deleteMessagesByChatIdAfterTimestamp({
     const messageIds = messagesToDelete.map((message) => message.id);
 
     if (messageIds.length > 0) {
-      await db
+      await getDb()
         .delete(vote)
         .where(
           and(eq(vote.chatId, chatId), inArray(vote.messageId, messageIds)),
         );
 
-      return await db
+      return await getDb()
         .delete(message)
         .where(
           and(eq(message.chatId, chatId), inArray(message.id, messageIds)),
@@ -472,7 +487,7 @@ export async function updateChatVisiblityById({
   visibility: 'private' | 'public';
 }) {
   try {
-    return await db.update(chat).set({ visibility }).where(eq(chat.id, chatId));
+    return await getDb().update(chat).set({ visibility }).where(eq(chat.id, chatId));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -490,7 +505,7 @@ export async function updateChatLastContextById({
   context: AppUsage;
 }) {
   try {
-    return await db
+    return await getDb()
       .update(chat)
       .set({ lastContext: context })
       .where(eq(chat.id, chatId));
@@ -512,7 +527,7 @@ export async function getMessageCountByUserId({
       Date.now() - differenceInHours * 60 * 60 * 1000,
     );
 
-    const [stats] = await db
+    const [stats] = await getDb()
       .select({ count: count(message.id) })
       .from(message)
       .innerJoin(chat, eq(message.chatId, chat.id))
@@ -542,7 +557,7 @@ export async function createStreamId({
   chatId: string;
 }) {
   try {
-    await db
+    await getDb()
       .insert(stream)
       .values({ id: streamId, chatId, createdAt: new Date() });
   } catch (error) {
@@ -555,7 +570,7 @@ export async function createStreamId({
 
 export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
   try {
-    const streamIds = await db
+    const streamIds = await getDb()
       .select({ id: stream.id })
       .from(stream)
       .where(eq(stream.chatId, chatId))
@@ -578,7 +593,7 @@ export async function findSimilarExamples(
 ): Promise<Array<ChatExample>> {
   try {
     const vectorStr = JSON.stringify(promptEmbedding);
-    return await db
+    return await getDb()
       .select()
       .from(chatExamples)
       .where(eq(chatExamples.active, true))
@@ -591,7 +606,7 @@ export async function findSimilarExamples(
 
 export async function getActiveRuleSet(): Promise<AssistantRuleSet | null> {
   try {
-    const results = await db
+    const results = await getDb()
       .select()
       .from(assistantRuleSets)
       .where(eq(assistantRuleSets.active, true))
@@ -628,7 +643,7 @@ export async function insertGenerationRun(data: {
   latencyMs: number;
 }) {
   try {
-    const [run] = await db
+    const [run] = await getDb()
       .insert(generationRuns)
       .values({
         ...data,
@@ -651,7 +666,7 @@ export async function insertResponseFeedback(data: {
   selected?: boolean;
 }) {
   try {
-    const [feedbackRecord] = await db
+    const [feedbackRecord] = await getDb()
       .insert(responseFeedback)
       .values({
         ...data,

@@ -16,6 +16,22 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       AUTH_SECRET: ci-auth-secret-ci-auth-secret-ci-auth-secret
       NEXT_PUBLIC_APP_URL: http://localhost:3000
@@ -48,7 +64,10 @@ jobs:
       - name: Typecheck
         id: typecheck
         continue-on-error: true
-        run: pnpm typecheck > typecheck.log 2>&1
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm typecheck 2>&1 | tee typecheck.log
 
       - name: Upload typecheck diagnostics
         if: steps.typecheck.outcome == 'failure'
@@ -59,9 +78,9 @@ jobs:
 
       - name: Stop on typecheck failure
         if: steps.typecheck.outcome == 'failure'
-        run: |
-          cat typecheck.log
-          exit 1
+        run: exit 1
 
-      - name: Build
-        run: pnpm build
+      - name: Validate production deployment
+        env:
+          VERCEL_ENV: production
+        run: pnpm build:vercel
