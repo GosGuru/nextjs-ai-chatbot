@@ -4,6 +4,9 @@ on:
   push:
     paths:
       - package.json
+  pull_request:
+    paths:
+      - package.json
 
 permissions:
   contents: write
@@ -12,8 +15,10 @@ jobs:
   regenerate-lockfile:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Check out source branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -41,5 +46,5 @@ jobs:
             echo "Lockfile already up to date"
           else
             git commit -m "chore: regenerate dependency lockfile"
-            git push
+            git push origin HEAD:${{ github.head_ref || github.ref_name }}
           fi
