@@ -6,7 +6,7 @@ import {
 import { createOpenAI } from '@ai-sdk/openai';
 import { isTestEnvironment } from '../constants';
 
-const openaiProvider = createOpenAI({
+export const openaiProvider = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
