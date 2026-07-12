@@ -1,0 +1,56 @@
+name: Apply targeted type fixes
+
+on:
+  push:
+    paths:
+      - .github/workflows/apply-type-fixes.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Apply exact source fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              Path('lib/ai/providers.ts'): [
+                  ('const openaiProvider = createOpenAI({', 'export const openaiProvider = createOpenAI({'),
+              ],
+              Path('components/document-preview.tsx'): [
+                  ('hitboxRef: React.RefObject<HTMLDivElement>;', 'hitboxRef: React.RefObject<HTMLDivElement | null>;'),
+              ],
+              Path('components/toolbar.tsx'): [
+                  ('const toolbarRef = useRef<HTMLDivElement>(null);', 'const toolbarRef = useRef<HTMLDivElement>(null!);'),
+                  ('const timeoutRef = useRef<ReturnType<typeof setTimeout>>();', 'const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);'),
+              ],
+              Path('tests/e2e/session.test.ts'): [
+                  ('let request = response.request();', 'let request: ReturnType<typeof response.request> | null = response.request();'),
+              ],
+          }
+
+          for path, pairs in replacements.items():
+              content = path.read_text()
+              for old, new in pairs:
+                  if old not in content:
+                      raise SystemExit(f'Expected text not found in {path}: {old}')
+                  content = content.replace(old, new)
+              path.write_text(content)
+          PY
+
+      - name: Commit fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/ai/providers.ts components/document-preview.tsx components/toolbar.tsx tests/e2e/session.test.ts
+          git commit -m "fix: resolve React 19 and provider type errors"
+          git push origin HEAD:${{ github.ref_name }}
