@@ -1,7 +1,7 @@
 import { auth } from '@/app/(auth)/auth';
-import { insertResponseFeedback } from '@/lib/db/queries';
+import { recordResponseFeedback } from '@/lib/db/queries';
 import { ChatSDKError } from '@/lib/errors';
-import type { FeedbackPayload } from '@/lib/types';
+import { feedbackPayloadSchema } from '@/lib/ai/feedback';
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -11,22 +11,19 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body: FeedbackPayload = await request.json();
-    const { generationRunId, optionType, optionText, feedback, comment } = body;
-
-    if (!generationRunId || !optionType || !optionText || !feedback) {
+    const parsed = feedbackPayloadSchema.safeParse(await request.json());
+    if (!parsed.success) {
       return new ChatSDKError('bad_request:api').toResponse();
     }
 
-    const selected = feedback === 'selected';
-
-    const feedbackRecord = await insertResponseFeedback({
-      generationRunId,
-      optionType,
-      optionText,
-      feedback,
-      selected,
+    const feedbackRecord = await recordResponseFeedback({
+      userId: session.user.id,
+      ...parsed.data,
     });
+
+    if (!feedbackRecord) {
+      return new ChatSDKError('not_found:chat').toResponse();
+    }
 
     return Response.json(feedbackRecord, { status: 200 });
   } catch (error) {

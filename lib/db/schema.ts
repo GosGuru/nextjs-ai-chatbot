@@ -248,6 +248,7 @@ export type GenerationRun = InferSelectModel<typeof generationRuns>;
 export const responseFeedback = pgTable('response_feedback', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   generationRunId: uuid('generation_run_id').references(() => generationRuns.id),
+  clientEventId: uuid('client_event_id').unique(),
   optionType: text('option_type').notNull(),
   optionText: text('option_text').notNull(),
   feedback: text('feedback').notNull(),

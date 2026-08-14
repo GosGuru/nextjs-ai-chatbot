@@ -86,8 +86,8 @@ export function RAGAssistantPanel({
           body: JSON.stringify({
             generationRunId,
             optionType,
-            optionText,
-            feedback: 'copied',
+            event: 'copied',
+            clientEventId: crypto.randomUUID(),
           }),
         });
       }
@@ -112,8 +112,8 @@ export function RAGAssistantPanel({
           body: JSON.stringify({
             generationRunId,
             optionType,
-            optionText,
-            feedback: type,
+            event: type,
+            clientEventId: crypto.randomUUID(),
           }),
         });
       } catch (err) {

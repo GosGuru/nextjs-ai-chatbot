@@ -83,9 +83,8 @@ export interface ChatGenerationPayload {
 export interface FeedbackPayload {
   generationRunId: string;
   optionType: string;
-  optionText: string;
-  feedback: 'positive' | 'negative' | 'copied' | 'selected' | 'regenerated';
-  comment?: string;
+  event: 'positive' | 'negative' | 'copied' | 'selected';
+  clientEventId: string;
 }
 
 export interface RAGMetadata {

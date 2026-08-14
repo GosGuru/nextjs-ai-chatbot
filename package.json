@@ -19,6 +19,8 @@
     "db:pull": "drizzle-kit pull",
     "db:check": "drizzle-kit check",
     "db:up": "drizzle-kit up",
+    "security:audit-data-api": "node --env-file=.env.local scripts/audit-public-data-api.mjs",
+    "security:dataset-manifest": "node --env-file=.env.local scripts/dataset-integrity.mjs",
     "test": "export PLAYWRIGHT=True && pnpm exec playwright test"
   },
   "dependencies": {

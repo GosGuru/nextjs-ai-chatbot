@@ -1,0 +1,30 @@
+-- Custom SQL migration file, put you code below! --
+-- This migration intentionally leaves app tables in `public` for compatibility
+-- with the existing Drizzle schema while making them inaccessible to PostgREST
+-- roles. Runtime traffic uses the server-side PostgreSQL connection.
+
+REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM anon, authenticated;
+REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
+REVOKE ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public FROM anon, authenticated;
+REVOKE ALL PRIVILEGES ON SCHEMA public FROM anon, authenticated;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  REVOKE ALL PRIVILEGES ON TABLES FROM anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  REVOKE ALL PRIVILEGES ON SEQUENCES FROM anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  REVOKE ALL PRIVILEGES ON FUNCTIONS FROM anon, authenticated;
+
+ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Chat" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Message" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Message_v2" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Vote" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Vote_v2" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Document" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Suggestion" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Stream" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_examples ENABLE ROW LEVEL SECURITY;
+ALTER TABLE assistant_rule_sets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE generation_runs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE response_feedback ENABLE ROW LEVEL SECURITY;

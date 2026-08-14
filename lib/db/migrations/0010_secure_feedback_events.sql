@@ -1,0 +1,2 @@
+ALTER TABLE "response_feedback" ADD COLUMN "client_event_id" uuid;--> statement-breakpoint
+ALTER TABLE "response_feedback" ADD CONSTRAINT "response_feedback_client_event_id_unique" UNIQUE("client_event_id");
