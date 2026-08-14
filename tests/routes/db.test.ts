@@ -18,7 +18,7 @@ test.describe('Database RAG Schema Integration', () => {
     expect(dbQueries.findSimilarExamples).toBeDefined();
     expect(dbQueries.findSimilarRuleSets).toBeDefined();
     expect(dbQueries.insertGenerationRun).toBeDefined();
-    expect(dbQueries.insertResponseFeedback).toBeDefined();
+    expect(dbQueries.recordResponseFeedback).toBeDefined();
   });
 });
 

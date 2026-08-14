@@ -42,6 +42,7 @@ import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
 import { ChatSDKError } from '../errors';
 import type { AppUsage } from '../usage';
+import { resolveFeedbackOptionText } from '../ai/feedback';
 
 // Optionally, if not using email/pass login, you can
 // use the Drizzle adapter for Auth.js / NextAuth
@@ -658,23 +659,68 @@ export async function insertGenerationRun(data: {
   }
 }
 
-export async function insertResponseFeedback(data: {
+export async function recordResponseFeedback(data: {
+  userId: string;
   generationRunId: string;
   optionType: string;
-  optionText: string;
-  feedback: string;
-  selected?: boolean;
+  event: 'positive' | 'negative' | 'copied' | 'selected';
+  clientEventId: string;
 }) {
   try {
-    const [feedbackRecord] = await getDb()
-      .insert(responseFeedback)
-      .values({
-        ...data,
-        selected: data.selected ?? false,
-      })
-      .returning();
-    return feedbackRecord;
+    return await getDb().transaction(async (tx) => {
+      const [run] = await tx
+        .select({ result: generationRuns.result })
+        .from(generationRuns)
+        .where(
+          and(
+            eq(generationRuns.id, data.generationRunId),
+            eq(generationRuns.userId, data.userId),
+          ),
+        )
+        .limit(1);
+
+      if (!run) {
+        return null;
+      }
+
+      const optionText = resolveFeedbackOptionText(
+        run.result,
+        data.optionType,
+      );
+
+      if (!optionText) {
+        throw new ChatSDKError(
+          'bad_request:database',
+          'The selected option does not exist in this generation run.',
+        );
+      }
+
+      const [created] = await tx
+        .insert(responseFeedback)
+        .values({
+          generationRunId: data.generationRunId,
+          clientEventId: data.clientEventId,
+          optionType: data.optionType,
+          optionText,
+          feedback: data.event,
+          selected: data.event === 'selected',
+        })
+        .onConflictDoNothing({ target: responseFeedback.clientEventId })
+        .returning();
+
+      if (created) {
+        return created;
+      }
+
+      return {
+        duplicate: true as const,
+        clientEventId: data.clientEventId,
+      };
+    });
   } catch (error) {
+    if (error instanceof ChatSDKError) {
+      throw error;
+    }
     throw new ChatSDKError('bad_request:database', 'Failed to insert response feedback');
   }
 }
