@@ -801,6 +801,7 @@ export async function recordResponseFeedback(data: {
           clientEventId: data.clientEventId,
           optionType: data.optionType,
           optionText,
+          event: data.event,
           feedback: data.event,
           selected: data.event === 'selected',
         })
