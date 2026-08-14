@@ -15,6 +15,7 @@ const filePartSchema = z.object({
 const partSchema = z.union([textPartSchema, filePartSchema]);
 
 const controlsSchema = z.object({
+  locale: z.enum(['es-AR', 'es-UY', 'es-MX', 'es-CO', 'es-CL', 'es-419']),
   platform: z.string(),
   category: z.string(),
   objective: z.string(),

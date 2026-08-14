@@ -216,6 +216,7 @@ export async function POST(request: Request) {
     let customSystemPrompt: string | undefined;
     let examples: any[] = [];
     let ruleSet: any = null;
+    let retrieval: any = null;
 
     if (controls) {
       const imageFiles = message.parts.filter((p) => p.type === 'file') as Array<{
@@ -244,9 +245,16 @@ export async function POST(request: Request) {
       }.`;
 
       const { performRAGSearch } = await import('@/lib/ai/rag-search');
-      const RAGResult = await performRAGSearch(queryText, 6);
+      const RAGResult = await performRAGSearch(queryText, {
+        limit: 6,
+        locale: controls.locale,
+        category: controls.category,
+        goal: controls.objective,
+        platform: controls.platform,
+      });
       examples = RAGResult.examples;
       ruleSet = RAGResult.ruleSet;
+      retrieval = RAGResult.retrieval;
 
       const { buildRAGSystemPrompt } = await import('@/lib/ai/prompts');
       customSystemPrompt = buildRAGSystemPrompt({
@@ -341,11 +349,12 @@ export async function POST(request: Request) {
                   controls,
                   detectedCategory,
                   retrievedExampleIds: examples.map((ex) => ex.id),
-                  retrievalScores: {},
+                  retrievalScores: retrieval || {},
                   ruleSetId: ruleSet ? ruleSet.id : null,
                   model: selectedChatModel === 'chat-model' ? 'deepseek-chat' : selectedChatModel,
                   result: parsedResult,
                   latencyMs,
+                  locale: controls.locale,
                 });
 
                 dataStream.write({ type: 'data-generation-run-id', data: run.id } as any);

@@ -8,6 +8,7 @@ import {
   eq,
   gt,
   gte,
+  getTableColumns,
   inArray,
   lt,
   type SQL,
@@ -36,6 +37,7 @@ import {
   type ChatExample,
   type AssistantRuleSet,
 } from './schema';
+import { localeFallbacks, type SupportedLocale } from '../ai/locales';
 import type { ArtifactKind } from '@/components/artifact';
 import { generateUUID } from '../utils';
 import { generateHashedPassword } from './utils';
@@ -81,7 +83,9 @@ export async function createUser(email: string, password: string) {
   const hashedPassword = generateHashedPassword(password);
 
   try {
-    return await getDb().insert(user).values({ email, password: hashedPassword });
+    return await getDb()
+      .insert(user)
+      .values({ email, password: hashedPassword });
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to create user');
   }
@@ -225,7 +229,10 @@ export async function getChatsByUserId({
 
 export async function getChatById({ id }: { id: string }) {
   try {
-    const [selectedChat] = await getDb().select().from(chat).where(eq(chat.id, id));
+    const [selectedChat] = await getDb()
+      .select()
+      .from(chat)
+      .where(eq(chat.id, id));
     if (!selectedChat) {
       return null;
     }
@@ -284,11 +291,13 @@ export async function voteMessage({
         .set({ isUpvoted: type === 'up' })
         .where(and(eq(vote.messageId, messageId), eq(vote.chatId, chatId)));
     }
-    return await getDb().insert(vote).values({
-      chatId,
-      messageId,
-      isUpvoted: type === 'up',
-    });
+    return await getDb()
+      .insert(vote)
+      .values({
+        chatId,
+        messageId,
+        isUpvoted: type === 'up',
+      });
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to vote message');
   }
@@ -488,7 +497,10 @@ export async function updateChatVisiblityById({
   visibility: 'private' | 'public';
 }) {
   try {
-    return await getDb().update(chat).set({ visibility }).where(eq(chat.id, chatId));
+    return await getDb()
+      .update(chat)
+      .set({ visibility })
+      .where(eq(chat.id, chatId));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -588,45 +600,131 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
 }
 
 // RAG Query Functions
-export async function findSimilarExamples(
-  promptEmbedding: number[],
-  limit = 6
-): Promise<Array<ChatExample>> {
+export interface SimilarExamplesQuery {
+  embedding: number[];
+  limit?: number;
+  locale: SupportedLocale;
+  category?: string;
+  goal?: string;
+  platform?: string;
+  semantic: boolean;
+  embeddingModel: string;
+  embeddingVersion: number;
+}
+
+export type RetrievedExample = ChatExample & {
+  similarityScore: number;
+};
+
+export async function findSimilarExamples({
+  embedding,
+  limit = 6,
+  locale,
+  category,
+  goal,
+  platform,
+  semantic,
+  embeddingModel,
+  embeddingVersion,
+}: SimilarExamplesQuery): Promise<Array<RetrievedExample>> {
   try {
-    const vectorStr = JSON.stringify(promptEmbedding);
-    return await getDb()
-      .select()
-      .from(chatExamples)
-      .where(eq(chatExamples.active, true))
-      .orderBy(sql`${chatExamples.embedding} <=> ${vectorStr}`)
-      .limit(limit);
+    if (embedding.length !== 768) {
+      throw new Error('Embedding version mismatch: expected 768 dimensions');
+    }
+
+    const vectorStr = JSON.stringify(embedding);
+    const fallbacks = localeFallbacks(locale);
+    const vectorColumn = semantic
+      ? chatExamples.embeddingV2
+      : chatExamples.embedding;
+    const baseConditions = [
+      eq(chatExamples.active, true),
+      inArray(chatExamples.locale, fallbacks),
+    ];
+
+    if (semantic) {
+      baseConditions.push(eq(chatExamples.embeddingVersion, embeddingVersion));
+      baseConditions.push(eq(chatExamples.embeddingModel, embeddingModel));
+      baseConditions.push(sql`${chatExamples.embeddingV2} is not null`);
+    }
+
+    const query = async (useMetadata: boolean) => {
+      const conditions = [...baseConditions];
+      if (useMetadata && category && category !== 'auto') {
+        conditions.push(eq(chatExamples.category, category));
+      }
+      if (useMetadata && goal) {
+        conditions.push(eq(chatExamples.goal, goal));
+      }
+      if (useMetadata && platform) {
+        conditions.push(eq(chatExamples.platform, platform));
+      }
+
+      return getDb()
+        .select({
+          ...getTableColumns(chatExamples),
+          similarityScore: sql<number>`(1 - (${vectorColumn} <=> ${vectorStr}::vector))::float`,
+        })
+        .from(chatExamples)
+        .where(and(...conditions))
+        .orderBy(
+          sql`array_position(${fallbacks}::text[], ${chatExamples.locale})`,
+          sql`${vectorColumn} <=> ${vectorStr}::vector`,
+          desc(chatExamples.qualityScore),
+        )
+        .limit(limit);
+    };
+
+    const filtered = await query(true);
+    return filtered.length > 0 ? filtered : query(false);
   } catch (error) {
-    throw new ChatSDKError('bad_request:database', 'Failed to find similar examples');
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to find similar examples',
+    );
   }
 }
 
-export async function getActiveRuleSet(): Promise<AssistantRuleSet | null> {
+export async function getActiveRuleSet(
+  locale: SupportedLocale = 'es-419',
+): Promise<AssistantRuleSet | null> {
   try {
+    const fallbacks = localeFallbacks(locale);
     const results = await getDb()
       .select()
       .from(assistantRuleSets)
-      .where(eq(assistantRuleSets.active, true))
+      .where(
+        and(
+          eq(assistantRuleSets.active, true),
+          inArray(assistantRuleSets.locale, fallbacks),
+        ),
+      )
+      .orderBy(
+        sql`array_position(${fallbacks}::text[], ${assistantRuleSets.locale})`,
+        desc(assistantRuleSets.version),
+      )
       .limit(1);
     return results[0] || null;
   } catch (error) {
-    throw new ChatSDKError('bad_request:database', 'Failed to get active rule set');
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get active rule set',
+    );
   }
 }
 
 export async function findSimilarRuleSets(
   promptEmbedding: number[],
-  limit = 2
+  limit = 2,
 ): Promise<Array<AssistantRuleSet>> {
   try {
-    const active = await getActiveRuleSet();
+    const active = await getActiveRuleSet('es-419');
     return active ? [active] : [];
   } catch (error) {
-    throw new ChatSDKError('bad_request:database', 'Failed to find similar rule sets');
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to find similar rule sets',
+    );
   }
 }
 
@@ -642,6 +740,7 @@ export async function insertGenerationRun(data: {
   model: string;
   result: any;
   latencyMs: number;
+  locale?: string;
 }) {
   try {
     const [run] = await getDb()
@@ -655,7 +754,10 @@ export async function insertGenerationRun(data: {
       .returning();
     return run;
   } catch (error) {
-    throw new ChatSDKError('bad_request:database', 'Failed to insert generation run');
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to insert generation run',
+    );
   }
 }
 
@@ -683,10 +785,7 @@ export async function recordResponseFeedback(data: {
         return null;
       }
 
-      const optionText = resolveFeedbackOptionText(
-        run.result,
-        data.optionType,
-      );
+      const optionText = resolveFeedbackOptionText(run.result, data.optionType);
 
       if (!optionText) {
         throw new ChatSDKError(
@@ -721,7 +820,9 @@ export async function recordResponseFeedback(data: {
     if (error instanceof ChatSDKError) {
       throw error;
     }
-    throw new ChatSDKError('bad_request:database', 'Failed to insert response feedback');
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to insert response feedback',
+    );
   }
 }
-

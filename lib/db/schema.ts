@@ -1,4 +1,4 @@
-import type { InferSelectModel } from 'drizzle-orm';
+import { sql, type InferSelectModel } from 'drizzle-orm';
 import {
   pgTable,
   varchar,
@@ -12,6 +12,7 @@ import {
   boolean,
   integer,
   decimal,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import type { AppUsage } from '../usage';
 
@@ -207,6 +208,12 @@ export const chatExamples = pgTable('chat_examples', {
   intensity: text('intensity'),
   qualityScore: decimal('quality_score', { precision: 3, scale: 2 }).default('1.00'),
   embedding: vector('embedding').notNull(),
+  embeddingV2: vector('embedding_v2'),
+  embeddingModel: text('embedding_model'),
+  embeddingVersion: integer('embedding_version').default(1).notNull(),
+  locale: text('locale').default('es-AR').notNull(),
+  datasetVersion: text('dataset_version').default('legacy-2026-07').notNull(),
+  sourceMetadata: jsonb('source_metadata'),
   sourceHash: text('source_hash').unique().notNull(),
   active: boolean('active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -215,15 +222,29 @@ export const chatExamples = pgTable('chat_examples', {
 
 export type ChatExample = InferSelectModel<typeof chatExamples>;
 
-export const assistantRuleSets = pgTable('assistant_rule_sets', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  name: text('name').notNull(),
-  version: integer('version').notNull(),
-  systemPrompt: text('system_prompt').notNull(),
-  rules: jsonb('rules').notNull(),
-  active: boolean('active').default(true).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+export const assistantRuleSets = pgTable(
+  'assistant_rule_sets',
+  {
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
+    locale: text('locale').default('es-419').notNull(),
+    name: text('name').notNull(),
+    version: integer('version').notNull(),
+    systemPrompt: text('system_prompt').notNull(),
+    rules: jsonb('rules').notNull(),
+    active: boolean('active').default(true).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    localeNameVersionUnique: uniqueIndex(
+      'assistant_rule_sets_locale_name_version_unique',
+    ).on(table.locale, table.name, table.version),
+    oneActivePerLocale: uniqueIndex(
+      'assistant_rule_sets_one_active_per_locale',
+    )
+      .on(table.locale)
+      .where(sql`${table.active} = true`),
+  }),
+);
 
 export type AssistantRuleSet = InferSelectModel<typeof assistantRuleSets>;
 
@@ -240,6 +261,7 @@ export const generationRuns = pgTable('generation_runs', {
   model: text('model').notNull(),
   result: jsonb('result').notNull(),
   latencyMs: integer('latency_ms').notNull(),
+  locale: text('locale').default('es-419').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -257,4 +279,17 @@ export const responseFeedback = pgTable('response_feedback', {
 });
 
 export type ResponseFeedback = InferSelectModel<typeof responseFeedback>;
+
+export const datasetVersions = pgTable('dataset_versions', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  version: text('version').unique().notNull(),
+  checksum: text('checksum').notNull(),
+  sourceCount: integer('source_count').notNull(),
+  locales: text('locales').array().notNull(),
+  embeddingModel: text('embedding_model').notNull(),
+  embeddingVersion: integer('embedding_version').notNull(),
+  importedAt: timestamp('imported_at').defaultNow().notNull(),
+});
+
+export type DatasetVersion = InferSelectModel<typeof datasetVersions>;
 

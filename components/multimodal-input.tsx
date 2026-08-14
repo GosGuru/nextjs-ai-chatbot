@@ -266,7 +266,27 @@ function PureMultimodalInput({
             </span>
           </div>
           
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-7">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="locale-select" className="text-[10px] text-muted-foreground uppercase font-medium">Región</label>
+              <Select
+                value={controls.locale}
+                onValueChange={(val) => setControls((c: any) => ({ ...c, locale: val }))}
+              >
+                <SelectTrigger id="locale-select" className="h-8 text-xs bg-background">
+                  <SelectValue placeholder="Región" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="es-419">Latinoamérica</SelectItem>
+                  <SelectItem value="es-AR">Argentina</SelectItem>
+                  <SelectItem value="es-UY">Uruguay</SelectItem>
+                  <SelectItem value="es-MX">México</SelectItem>
+                  <SelectItem value="es-CO">Colombia</SelectItem>
+                  <SelectItem value="es-CL">Chile</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex flex-col gap-1">
               <label htmlFor="platform-select" className="text-[10px] text-muted-foreground uppercase font-medium">Plataforma</label>
               <Select
