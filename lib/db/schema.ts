@@ -13,6 +13,7 @@ import {
   integer,
   decimal,
   uniqueIndex,
+  index,
 } from 'drizzle-orm/pg-core';
 import type { AppUsage } from '../usage';
 
@@ -206,7 +207,9 @@ export const chatExamples = pgTable('chat_examples', {
   strategyTags: text('strategy_tags').array(),
   investmentLevel: text('investment_level'),
   intensity: text('intensity'),
-  qualityScore: decimal('quality_score', { precision: 3, scale: 2 }).default('1.00'),
+  qualityScore: decimal('quality_score', { precision: 3, scale: 2 }).default(
+    '1.00',
+  ),
   embedding: vector('embedding').notNull(),
   embeddingV2: vector('embedding_v2'),
   embeddingModel: text('embedding_model'),
@@ -238,9 +241,7 @@ export const assistantRuleSets = pgTable(
     localeNameVersionUnique: uniqueIndex(
       'assistant_rule_sets_locale_name_version_unique',
     ).on(table.locale, table.name, table.version),
-    oneActivePerLocale: uniqueIndex(
-      'assistant_rule_sets_one_active_per_locale',
-    )
+    oneActivePerLocale: uniqueIndex('assistant_rule_sets_one_active_per_locale')
       .on(table.locale)
       .where(sql`${table.active} = true`),
   }),
@@ -267,16 +268,31 @@ export const generationRuns = pgTable('generation_runs', {
 
 export type GenerationRun = InferSelectModel<typeof generationRuns>;
 
-export const responseFeedback = pgTable('response_feedback', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  generationRunId: uuid('generation_run_id').references(() => generationRuns.id),
-  clientEventId: uuid('client_event_id').unique(),
-  optionType: text('option_type').notNull(),
-  optionText: text('option_text').notNull(),
-  feedback: text('feedback').notNull(),
-  selected: boolean('selected').default(false).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+export const responseFeedback = pgTable(
+  'response_feedback',
+  {
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
+    generationRunId: uuid('generation_run_id').references(
+      () => generationRuns.id,
+    ),
+    clientEventId: uuid('client_event_id').unique(),
+    optionType: text('option_type').notNull(),
+    optionText: text('option_text').notNull(),
+    event: text('event').notNull(),
+    feedback: text('feedback').notNull(),
+    selected: boolean('selected').default(false).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    generationRunIndex: index('response_feedback_generation_run_idx').on(
+      table.generationRunId,
+    ),
+    eventCreatedAtIndex: index('response_feedback_event_created_at_idx').on(
+      table.event,
+      table.createdAt,
+    ),
+  }),
+);
 
 export type ResponseFeedback = InferSelectModel<typeof responseFeedback>;
 
@@ -292,4 +308,3 @@ export const datasetVersions = pgTable('dataset_versions', {
 });
 
 export type DatasetVersion = InferSelectModel<typeof datasetVersions>;
-

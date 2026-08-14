@@ -26,6 +26,7 @@ export async function POST(request: Request) {
     const result = await performRAGSearch(payload.queryText, {
       ...payload,
       limit: 6,
+      rolloutKey: `${session.user.id}:manual-rag`,
     });
     return Response.json(result, { status: 200 });
   } catch (error) {

@@ -251,6 +251,7 @@ export async function POST(request: Request) {
         category: controls.category,
         goal: controls.objective,
         platform: controls.platform,
+        rolloutKey: `${session.user.id}:${id}`,
       });
       examples = RAGResult.examples;
       ruleSet = RAGResult.ruleSet;
