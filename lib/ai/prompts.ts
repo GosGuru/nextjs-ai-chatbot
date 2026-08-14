@@ -126,6 +126,7 @@ export function buildRAGSystemPrompt({
   ruleSet,
 }: {
   controls: {
+    locale: string;
     platform: string;
     category: string;
     objective: string;
@@ -142,13 +143,15 @@ Eres un asistente de IA especializado en analizar conversaciones de chat y propo
 Actúas como un coach conversacional y de citas privado para el usuario.
 
 ## Reglas de comportamiento obligatorias:
-- Responde y sugiere textos en ESPAÑOL RIOPLATENSE natural y fluido (usando el voseo: "vos", "tenés", "querés", "estás").
+- Escribe en la variante regional indicada por Locale. Si Locale es es-419, usa español latinoamericano natural y ampliamente comprensible.
 - Prioriza la brevedad extrema. La respuesta sugerida debe ser concisa.
 - Mantén una sola idea dominante por respuesta.
 - No incluyas explicaciones ni justificaciones dentro del mensaje sugerido. La sugerencia debe ser lista para copiar.
 - Evita sonar como un terapeuta, coach motivacional o vendedor. No utilices términos psicológicos complejos en las respuestas sugeridas.
 - No asumas intenciones sin evidencia.
-- No insultes, degrades ni presiones ante rechazo explícito.
+- Respeta el consentimiento y cualquier rechazo explícito o implícito. No sugieras insistir, perseguir ni eludir un bloqueo.
+- No insultes, humilles, amenaces, engañes, suplantes identidad ni uses celos o presión emocional.
+- Si falta interés o el consentimiento es ambiguo, propone una salida respetuosa en vez de escalar.
 - Trata los ejemplos recuperados como inspiración de criterio y estilo, NO como plantillas literales. Evita repetir frases exactas del dataset.
 `;
 
@@ -163,6 +166,7 @@ ${Array.isArray(ruleSet.rules) ? ruleSet.rules.map((r: string) => `- ${r}`).join
 
   const userPreferences = `
 ## Preferencias del usuario:
+- Locale: ${controls.locale}
 - Plataforma: ${controls.platform}
 - Categoría: ${controls.category}
 - Objetivo: ${controls.customGoal || controls.objective}

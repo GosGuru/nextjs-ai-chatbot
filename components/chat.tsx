@@ -70,6 +70,7 @@ export function Chat({
   const currentModelIdRef = useRef(currentModelId);
 
   const [controls, setControls] = useState({
+    locale: 'es-419',
     platform: 'Tinder',
     category: 'apertura',
     objective: 'calibrar_charla',
