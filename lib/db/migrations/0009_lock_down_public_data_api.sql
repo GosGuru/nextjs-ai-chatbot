@@ -3,17 +3,46 @@
 -- with the existing Drizzle schema while making them inaccessible to PostgREST
 -- roles. Runtime traffic uses the server-side PostgreSQL connection.
 
-REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM anon, authenticated;
-REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
-REVOKE ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public FROM anon, authenticated;
-REVOKE ALL PRIVILEGES ON SCHEMA public FROM anon, authenticated;
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  REVOKE ALL PRIVILEGES ON TABLES FROM anon, authenticated;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  REVOKE ALL PRIVILEGES ON SEQUENCES FROM anon, authenticated;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  REVOKE ALL PRIVILEGES ON FUNCTIONS FROM anon, authenticated;
+-- Supabase defines these PostgREST roles. Plain PostgreSQL environments used
+-- by CI do not, so guard each revoke without weakening Supabase production.
+DO $$
+DECLARE
+  role_name text;
+BEGIN
+  FOREACH role_name IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = role_name) THEN
+      EXECUTE format(
+        'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM %I',
+        role_name
+      );
+      EXECUTE format(
+        'REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM %I',
+        role_name
+      );
+      EXECUTE format(
+        'REVOKE ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public FROM %I',
+        role_name
+      );
+      EXECUTE format(
+        'REVOKE ALL PRIVILEGES ON SCHEMA public FROM %I',
+        role_name
+      );
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL PRIVILEGES ON TABLES FROM %I',
+        role_name
+      );
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL PRIVILEGES ON SEQUENCES FROM %I',
+        role_name
+      );
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL PRIVILEGES ON FUNCTIONS FROM %I',
+        role_name
+      );
+    END IF;
+  END LOOP;
+END
+$$;
 
 ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Chat" ENABLE ROW LEVEL SECURITY;
